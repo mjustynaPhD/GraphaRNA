@@ -1,0 +1,4 @@
+data/RNA-Puzzles/*
+*.pdb
+*.tar
+*.pyc
