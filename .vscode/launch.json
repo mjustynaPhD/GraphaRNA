@@ -1,0 +1,40 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Train Puzzles",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "main_rna_puzzles.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--dataset",
+                "RNA-Puzzles",
+                "--epochs=15",
+                "--batch_size=8",
+                "--dim=16",
+                "--n_layer=1",
+                "--lr=1e-4"
+            ]
+        },
+        {
+            "name": "Train RNA torsion",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "main_rna_tors.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--dataset",
+                "2D-tors",
+                "--epochs=15",
+                "--batch_size=8",
+                "--dim=16",
+                "--n_layer=1",
+                "--lr=1e-4"
+            ]
+        }
+    ]
+}

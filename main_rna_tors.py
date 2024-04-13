@@ -2,15 +2,14 @@ import os
 import os.path as osp
 import argparse
 import numpy as np
-import pandas as pd
 import random
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
 from torch_geometric.data import DataLoader
 
-from models import PAMNet, Config
-from datasets import TUDataset
+from model_rna import PAMNet, Config
+from datasets import TorsionAnglesDataset
 
 def set_seed(seed):
     torch.backends.cudnn.deterministic = True
@@ -59,21 +58,24 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if torch.cuda.is_available():
         torch.cuda.set_device(args.gpu)
+    else:
+        raise Exception("No GPU available!")
+
     
     set_seed(args.seed)
 
     # Creat dataset
     path = osp.join('.', 'data', args.dataset)
-    train_dataset = TUDataset(path, name='train', use_node_attr=True).shuffle()
-    val_dataset = TUDataset(path, name='val', use_node_attr=True)
+    train_dataset = TorsionAnglesDataset(path, name='train', use_node_attr=True)
+    val_dataset = TorsionAnglesDataset(path, name='val', use_node_attr=True)
 
     # Load dataset
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
+    print("Data loaded!")
     for data in train_loader:
         print(data)
         break
-    print("Data loaded!")
 
     config = Config(dataset=args.dataset, dim=args.dim, n_layer=args.n_layer, cutoff_l=args.cutoff_l, cutoff_g=args.cutoff_g)
 
@@ -85,7 +87,7 @@ def main():
     for epoch in range(args.epochs):
         model.train()
 
-        for data in train_loader:
+        for step, data in enumerate(train_loader):
             data = data.to(device)
             optimizer.zero_grad()
 
