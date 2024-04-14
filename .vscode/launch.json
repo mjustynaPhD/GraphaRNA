@@ -29,8 +29,8 @@
             "args": [
                 "--dataset",
                 "2D-tors",
-                "--epochs=15",
-                "--batch_size=8",
+                "--epochs=200",
+                "--batch_size=16",
                 "--dim=16",
                 "--n_layer=1",
                 "--lr=1e-4"

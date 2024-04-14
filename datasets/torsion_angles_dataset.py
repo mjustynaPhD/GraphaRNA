@@ -39,18 +39,17 @@ class TorsionAnglesDataset(Dataset):
         return len(self.files)
 
     def get(self, idx):
-        torsions, seq, ss, distances = self.get_raw_sample(idx)
+        node_attr, edge_indeces, edge_attr, torsions = self.get_raw_sample(idx)
         if self.transform:
             torsions = self.transform(torsions)
         name = self.files[idx]
         data = Data(
-            x=distances.float(),
-            seq=seq.float(),
-            ss=ss.float(),
+            x=node_attr,
+            edge_index=edge_indeces,
+            edge_attr=edge_attr,
             y=torsions.float(),
-            name=name
         )
-        return data
+        return data, name
 
     def get_raw_sample(self, idx):
         if torch.is_tensor(idx):
@@ -60,21 +59,29 @@ class TorsionAnglesDataset(Dataset):
         sample = self.load_pickle(path)
 
         seq = self.to_tensor(sample['seq_num'])
+        seq_graph = self.sequence_to_graph(seq)
+        node_attr = seq.unsqueeze(1).float() # This can an Embedding??
         torsions = np.array(sample['tor_ang']).astype(dtype=np.float16)
         torsions = self.to_tensor(self.encode_torsions(torsions))
         torsions = torsions.permute(2, 0, 1)
         torsions = torsions[:len(seq)]
+        # torsions = torsions.reshape(torsions.shape[0], -1)
         # ss = sample['pred_2d']
         ss = sample['dot_2d']
         ss = self.to_tensor([self.encode_2d[c] for c in ss])
-        ss_pairs = self.ss_to_pairs(ss)
+        ss_graph = self.ss_to_pairs(ss)
         if self.use_edge_attr:
             distances = sample['distances']
-            distances = distances[:len(seq), :len(seq)]
             distances = self.to_tensor(distances)
         else:
             distances = None
-        return torsions, seq, ss_pairs, distances
+        seq_edge_attr = self.get_edge_attr(seq_graph, distances)
+        seq_edge_attr = torch.cat((seq_edge_attr, torch.zeros_like(seq_edge_attr)), dim=1)
+        ss_edge_attr = self.get_edge_attr(ss_graph, distances)
+        ss_edge_attr = torch.cat((ss_edge_attr, torch.ones_like(ss_edge_attr)), dim=1)
+        edge_indeces = torch.cat((seq_graph, ss_graph), dim=1)
+        edge_attr = torch.cat((seq_edge_attr, ss_edge_attr), dim=0)
+        return node_attr, edge_indeces, edge_attr, torsions
 
     def encode_torsions(self, degrees):
         radians = np.deg2rad(degrees)
@@ -86,8 +93,22 @@ class TorsionAnglesDataset(Dataset):
     def ss_to_pairs(self, ss):
         openings = torch.where(ss == 1)[0].unsqueeze(0)
         closings = reversed(torch.where(ss == 2)[0]).unsqueeze(0)
-        pairs = torch.cat((openings, closings), dim=0).t()
+        pairs = torch.cat((openings, closings), dim=0)
+        pairs_rev = torch.cat((closings, openings), dim=0)
+        pairs = torch.cat((pairs, pairs_rev), dim=1)
         return pairs
+
+    def get_edge_attr(self, edge_index, distances):
+        edge_attr = torch.zeros(edge_index.shape[1], 1)
+        for i, (start, end) in enumerate(edge_index.t()):
+            edge_attr[i] = distances[start, end]
+        return edge_attr
+
+    def sequence_to_graph(self, seq):
+        num_nodes = len(seq)
+        edge_index = torch.tensor([[i, i+1] for i in range(num_nodes-1)], dtype=torch.long)
+        edge_index = torch.cat((edge_index, torch.flip(edge_index, [1])), dim=0)
+        return edge_index.t().contiguous()
     
     @property
     def raw_file_names(self):
@@ -96,6 +117,14 @@ class TorsionAnglesDataset(Dataset):
     @property
     def processed_file_names(self):
         return self.files
+    
+    @staticmethod
+    def pad_sequence(seq, seq_len):
+        return torch.nn.functional.pad(
+            seq,
+            (0, seq_len - seq.shape[0]),
+            'constant', value=0
+            )
 
     def load_pickle(self, path):
         with open(path, 'rb') as f:

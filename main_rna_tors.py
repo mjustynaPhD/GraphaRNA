@@ -8,7 +8,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch_geometric.data import DataLoader
 
-from model_rna import PAMNet, Config
+from model_rna import RNAGNN
 from datasets import TorsionAnglesDataset
 
 def set_seed(seed):
@@ -22,23 +22,35 @@ def set_seed(seed):
 def test(model, loader, device):
     model.eval()
 
-    pred_list = []
-    y_list = []
+    sin_pred_list = []
+    cos_pred_list = []
+    sin_y_list = []
+    cos_y_list = []
 
-    for data in loader:
+    for batch in loader:
+        data, name = batch
         data = data.to(device)
-        pred = model(data)
-        pred_list += pred.reshape(-1).tolist()
-        y_list += data.y.reshape(-1).tolist()
+        sin_pred, cos_pred = model(data)
+        
+        sin_pred_list += sin_pred.reshape(-1).tolist()
+        sin_y_list += data.y[:, 0, :].reshape(-1).tolist()
+        cos_pred_list += cos_pred.reshape(-1).tolist()
+        cos_y_list += data.y[:, 1, :].reshape(-1).tolist()
 
-    pred = np.array(pred_list).reshape(-1,)
-    pred = torch.tensor(pred).to(device)
 
-    y = np.array(y_list).reshape(-1,)
-    y = torch.tensor(y).to(device)
+    sin_pred = np.array(sin_pred_list).reshape(-1,)
+    sin_pred = torch.tensor(sin_pred).to(device)
+    cos_pred = np.array(cos_pred_list).reshape(-1,)
+    cos_pred = torch.tensor(cos_pred).to(device)
 
-    loss = F.smooth_l1_loss(pred, y)
-    return loss.item(), np.array(pred_list).reshape(-1,)
+    sin_y = np.array(sin_y_list).reshape(-1,)
+    sin_y = torch.tensor(sin_y).to(device)
+    cos_y = np.array(cos_y_list).reshape(-1,)
+    cos_y = torch.tensor(cos_y).to(device)
+
+    sin_loss = F.smooth_l1_loss(sin_pred, sin_y)
+    cos_loss = F.smooth_l1_loss(cos_pred, cos_y)
+    return sin_loss.item()+cos_loss.item(), np.array(sin_pred_list).reshape(-1,)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -73,13 +85,14 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
     print("Data loaded!")
-    for data in train_loader:
-        print(data)
-        break
+    # for data in train_loader:
+    #     print(data)
+    #     break
 
-    config = Config(dataset=args.dataset, dim=args.dim, n_layer=args.n_layer, cutoff_l=args.cutoff_l, cutoff_g=args.cutoff_g)
-
-    model = PAMNet(config).to(device)
+    # config = Config(dataset=args.dataset, dim=args.dim, n_layer=args.n_layer, cutoff_l=args.cutoff_l, cutoff_g=args.cutoff_g)
+    # model = PAMNet(config).to(device)
+    model = RNAGNN(1, 17, n_layers=1)
+    model.to(device=device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd, amsgrad=False)
     
     print("Start training!")
@@ -87,12 +100,15 @@ def main():
     for epoch in range(args.epochs):
         model.train()
 
-        for step, data in enumerate(train_loader):
+        for step, batch in enumerate(train_loader):
+            data, name = batch
             data = data.to(device)
             optimizer.zero_grad()
 
-            output = model(data)
-            loss = F.smooth_l1_loss(output, data.y)
+            sin_out, cos_out = model(data)
+            sin_loss = F.smooth_l1_loss(sin_out, data.y[:, 0, :])
+            cos_loss = F.smooth_l1_loss(cos_out, data.y[:, 1, :])
+            loss = sin_loss + cos_loss
             loss.backward()
             optimizer.step()
         
