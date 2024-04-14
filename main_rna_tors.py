@@ -7,6 +7,7 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 from torch_geometric.data import DataLoader
+import wandb
 
 from model_rna import RNAGNN
 from datasets import TorsionAnglesDataset
@@ -54,6 +55,7 @@ def main():
     parser.add_argument('--batch_size', type=int, default=8, help='batch_size')
     parser.add_argument('--cutoff_l', type=float, default=2.6, help='cutoff in local layer')
     parser.add_argument('--cutoff_g', type=float, default=20.0, help='cutoff in global layer')
+    parser.add_argument('--wandb', action='store_true', help='Use wandb for logging')
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -79,11 +81,21 @@ def main():
     #     break
 
     # config = Config(dataset=args.dataset, dim=args.dim, n_layer=args.n_layer, cutoff_l=args.cutoff_l, cutoff_g=args.cutoff_g)
-    # model = PAMNet(config).to(device)
+    
+    
+    wandb.login()
+    wandb.init(
+        project="RNA-Torsion",
+        config=args,
+        mode="online" if args.wandb else "disabled"
+        )
+    
+
     model = RNAGNN(1, 34, n_layers=1)
     model.to(device=device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd, amsgrad=False)
     
+
     print("Start training!")
     best_val_loss = None
     for epoch in range(args.epochs):
@@ -102,6 +114,7 @@ def main():
         train_loss, _ = test(model, train_loader, device)
         val_loss, _ = test(model, val_loader, device)
 
+        wandb.log({"train_loss": train_loss, "val_loss": val_loss})
         print('Epoch: {:03d}, Train Loss: {:.7f}, Val Loss: {:.7f}'.format(epoch+1, train_loss, val_loss))
         
         save_folder = os.path.join(".", "save", args.dataset)
