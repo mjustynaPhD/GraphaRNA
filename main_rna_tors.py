@@ -8,7 +8,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch_geometric.data import DataLoader
 
-from model_rna import PAMNet, Config
+from model_rna import RNAGNN
 from datasets import TorsionAnglesDataset
 
 def set_seed(seed):
@@ -25,7 +25,8 @@ def test(model, loader, device):
     pred_list = []
     y_list = []
 
-    for data in loader:
+    for batch in loader:
+        data, name = batch
         data = data.to(device)
         pred = model(data)
         pred_list += pred.reshape(-1).tolist()
@@ -73,13 +74,14 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
     print("Data loaded!")
-    for data in train_loader:
-        print(data)
-        break
+    # for data in train_loader:
+    #     print(data)
+    #     break
 
-    config = Config(dataset=args.dataset, dim=args.dim, n_layer=args.n_layer, cutoff_l=args.cutoff_l, cutoff_g=args.cutoff_g)
-
-    model = PAMNet(config).to(device)
+    # config = Config(dataset=args.dataset, dim=args.dim, n_layer=args.n_layer, cutoff_l=args.cutoff_l, cutoff_g=args.cutoff_g)
+    # model = PAMNet(config).to(device)
+    model = RNAGNN(1, 34, n_layers=1)
+    model.to(device=device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd, amsgrad=False)
     
     print("Start training!")
@@ -87,7 +89,8 @@ def main():
     for epoch in range(args.epochs):
         model.train()
 
-        for step, data in enumerate(train_loader):
+        for step, batch in enumerate(train_loader):
+            data, name = batch
             data = data.to(device)
             optimizer.zero_grad()
 
