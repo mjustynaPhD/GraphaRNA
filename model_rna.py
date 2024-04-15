@@ -38,4 +38,4 @@ class RNAGNN(torch.nn.Module):
             x = batch_norm(x)
             x = relu(x)
         out = self.conv_out(x, edge_index)
-        return F.relu(out)
+        return out
