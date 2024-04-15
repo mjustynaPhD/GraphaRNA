@@ -1,4 +1,9 @@
 data/*
+artifacts/*
+*.tor
+*.ang
 *.pdb
 *.tar
 *.pyc
+wandb/*
+save/*
