@@ -68,15 +68,14 @@ def predict_samples(model, loader, device, evaluator, samples_path, epoch, nan_e
         data = data.to(device)
         pred = model(data)
         preds.append(pred.cpu().detach().numpy())
+        # seq = data.x
+        # numerical_seq = np.argmax(seq.cpu().detach(), axis=1)
         seqs.append(data.x)
         names.append(name[0])
 
     
     rmsds = evaluate_samples(preds, seqs, evaluator, samples_path, epoch, nan_eps, names, mode=mode, prefix=prefix)
     return rmsds
-        
-
-
 
 def main():
     parser = argparse.ArgumentParser()
@@ -142,7 +141,8 @@ def main():
             optimizer.zero_grad()
 
             output = model(data)
-            loss = F.smooth_l1_loss(output, data.y)
+            # loss = F.smooth_l1_loss(output, data.y)
+            loss = F.mse_loss(output, data.y)
             loss.backward()
             optimizer.step()
         

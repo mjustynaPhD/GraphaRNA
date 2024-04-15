@@ -60,7 +60,9 @@ class TorsionAnglesDataset(Dataset):
 
         seq = self.to_tensor(sample['seq_num'])
         seq_graph = self.sequence_to_graph(seq)
-        node_attr = seq.unsqueeze(1).float() # This can an Embedding??
+        # sequence to categorical
+        # node_attr = self.seq_one_hot(seq)
+        node_attr = seq.unsqueeze(1).float()
         torsions = np.array(sample['tor_ang']).astype(dtype=np.float16)
         torsions = self.to_tensor(self.encode_torsions(torsions))
         torsions = torsions.permute(2, 0, 1)
@@ -90,6 +92,12 @@ class TorsionAnglesDataset(Dataset):
         encoded_values = np.stack((sin_values, cos_values), axis=0)
         return encoded_values
     
+    def seq_one_hot(self, seq):
+        seq = seq.squeeze()
+        seq = seq.numpy()
+        seq = np.eye(4)[seq]
+        return torch.tensor(seq, dtype=torch.float32)
+
     def ss_to_pairs(self, ss):
         openings = torch.where(ss == 1)[0].unsqueeze(0)
         closings = reversed(torch.where(ss == 2)[0]).unsqueeze(0)
