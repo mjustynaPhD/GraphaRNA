@@ -70,7 +70,7 @@ def predict_samples(model, loader, device, evaluator, samples_path, epoch, nan_e
         preds.append(pred.cpu().detach().numpy())
         # seq = data.x
         # numerical_seq = np.argmax(seq.cpu().detach(), axis=1)
-        seqs.append(data.x)
+        seqs.append(data.x[:, 0] * 4)
         names.append(name[0])
 
     
@@ -125,7 +125,7 @@ def main():
         )
     
 
-    model = RNAGNN(1, 34, dim=args.dim, n_layers=args.n_layer)
+    model = RNAGNN(65, 34, dim=args.dim, n_layers=args.n_layer)
     model.to(device=device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd, amsgrad=False)
     
@@ -152,13 +152,14 @@ def main():
         wandb.log({"train_loss": train_loss, "val_loss": val_loss})
         print('Epoch: {:03d}, Train Loss: {:.7f}, Val Loss: {:.7f}'.format(epoch+1, train_loss, val_loss))
 
-        if epoch % args.sample_freq == 0:
+        if epoch+1 % args.sample_freq == 0:
             samples_path = os.path.join(".", "artifacts")
             if not os.path.exists(samples_path):
                 os.makedirs(samples_path)
             rmsds = predict_samples(model, sample_loader, device, evaluator, samples_path, epoch, 1e-3, mode='tor_ang', prefix='e')
-            print(f"Epoch: {epoch}, RMSD: {np.mean(rmsds)}")
-            wandb.log({"rmsd": np.mean(rmsds)})
+            print(f"Epoch: {epoch}, RMSD: {np.mean(rmsds)}, Min RMSD: {np.min(rmsds)}")
+            wandb.log({"rmsd": np.mean(rmsds), "min_rmsd": np.min(rmsds), "std_rmsd": np.std(rmsds), "max_rmsd": np.max(rmsds)})
+
         
         save_folder = os.path.join(".", "save", args.dataset)
         if not os.path.exists(save_folder):

@@ -1,8 +1,19 @@
 import os
 import pickle
+import math
 import numpy as np
 import torch
 from torch_geometric.data import Data, Dataset
+
+
+def positional_encoding(seq, dim=64):
+    times = torch.arange(len(seq))
+    half_dim = dim // 2
+    embeddings = math.log(10000) / (half_dim - 1)
+    embeddings = torch.exp(torch.arange(half_dim, dtype=torch.float32) * -embeddings)
+    embeddings = torch.einsum("i,j->ij", times, embeddings)
+    embeddings = torch.cat((torch.sin(embeddings), torch.cos(embeddings)), dim=-1)
+    return embeddings
 
 class TorsionAnglesDataset(Dataset):
     encode_2d = {
@@ -63,6 +74,9 @@ class TorsionAnglesDataset(Dataset):
         # sequence to categorical
         # node_attr = self.seq_one_hot(seq)
         node_attr = seq.unsqueeze(1).float()
+        node_attr /= 4
+        pos_emb = positional_encoding(seq)
+        node_attr = torch.cat((node_attr, pos_emb), dim=1)
         torsions = np.array(sample['tor_ang']).astype(dtype=np.float16)
         torsions = self.to_tensor(self.encode_torsions(torsions))
         torsions = torsions.permute(2, 0, 1)
