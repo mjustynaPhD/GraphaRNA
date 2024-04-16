@@ -75,7 +75,7 @@ class TorsionAnglesDataset(Dataset):
         # node_attr = self.seq_one_hot(seq)
         node_attr = seq.unsqueeze(1).float()
         node_attr /= 4
-        pos_emb = positional_encoding(seq)
+        pos_emb = positional_encoding(seq, dim=32)
         node_attr = torch.cat((node_attr, pos_emb), dim=1)
         torsions = np.array(sample['tor_ang']).astype(dtype=np.float16)
         torsions = self.to_tensor(self.encode_torsions(torsions))

@@ -125,7 +125,7 @@ def main():
         )
     
 
-    model = RNAGNN(65, 34, dim=args.dim, n_layers=args.n_layer)
+    model = RNAGNN(33, 34, dim=args.dim, n_layers=args.n_layer)
     model.to(device=device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd, amsgrad=False)
     
@@ -141,8 +141,8 @@ def main():
             optimizer.zero_grad()
 
             output = model(data)
-            # loss = F.smooth_l1_loss(output, data.y)
-            loss = F.mse_loss(output, data.y)
+            loss = F.smooth_l1_loss(output, data.y)
+            # loss = F.mse_loss(output, data.y)
             loss.backward()
             optimizer.step()
         
@@ -152,7 +152,7 @@ def main():
         wandb.log({"train_loss": train_loss, "val_loss": val_loss})
         print('Epoch: {:03d}, Train Loss: {:.7f}, Val Loss: {:.7f}'.format(epoch+1, train_loss, val_loss))
 
-        if epoch+1 % args.sample_freq == 0:
+        if epoch % args.sample_freq == 0:
             samples_path = os.path.join(".", "artifacts")
             if not os.path.exists(samples_path):
                 os.makedirs(samples_path)
