@@ -125,7 +125,7 @@ def main():
         )
     
 
-    model = RNAGNN(33, 34, dim=args.dim, n_layers=args.n_layer)
+    model = RNAGNN(64, 34, dim=args.dim, n_layers=args.n_layer, device=device)
     model.to(device=device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd, amsgrad=False)
     

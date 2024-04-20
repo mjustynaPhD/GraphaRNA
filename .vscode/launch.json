@@ -29,13 +29,13 @@
             "args": [
                 "--dataset",
                 "2D-tors",
-                "--epochs=500",
-                "--batch_size=8",
-                "--dim=16",
-                "--n_layer=1",
-                "--lr=1e-4",
-                "--sample_freq=10",
-                "--wandb",
+                "--epochs=350",
+                "--batch_size=64",
+                "--dim=256",
+                "--n_layer=64",
+                "--lr=1e-3",
+                "--sample_freq=50",
+                // "--wandb",
 
             ]
         }
