@@ -52,30 +52,30 @@ def main():
     # if A is similar to B, then break. Add B to the chain of A
     # start from B, compare with all other C. if C is similar to B, then break. Add C to the chain of A and B
     
-    max = len(files)
-    for i in tqdm(range(len(files[:max-1]))): # iterate over all files
-        if files[i] in f_visited: # skip files already visited
-            continue
-        i1 = i
-        top_level_f1 = None
-        while i1 < len(files[:max-1]): # try to find a chain (a sequence of similar files)
-            f1 = files[i1]
-            if top_level_f1 is None:
-                top_level_f1 = f1
-            f_visited[f1] = True # this file is already visited so we will skip it in the future iterations
+    # max = len(files)
+    # for i in tqdm(range(len(files[:max-1]))): # iterate over all files
+    #     if files[i] in f_visited: # skip files already visited
+    #         continue
+    #     i1 = i
+    #     top_level_f1 = None
+    #     while i1 < len(files[:max-1]): # try to find a chain (a sequence of similar files)
+    #         f1 = files[i1]
+    #         if top_level_f1 is None:
+    #             top_level_f1 = f1
+    #         f_visited[f1] = True # this file is already visited so we will skip it in the future iterations
 
-            for i2 in range(i1+1, len(files[:max])):
-                f2 = files[i2]
-                if run_command(f1, f2):
-                    chain[top_level_f1] = chain.get(top_level_f1, []) # add childs to the chain
-                    chain[top_level_f1].append(f2)
-                    f_visited[f2] = True # f2 is visited, because it is similar to f1, so there is no need to compare it with other files
-                    print(f1, f2, i1, i2)
-                    i1 = i2
-                    break
-            if i2 == len(files[:max])-1: # if chain is over, break
-                break
-            i1 += 1
+    #         for i2 in range(i1+1, len(files[:max])):
+    #             f2 = files[i2]
+    #             if run_command(f1, f2):
+    #                 chain[top_level_f1] = chain.get(top_level_f1, []) # add childs to the chain
+    #                 chain[top_level_f1].append(f2)
+    #                 f_visited[f2] = True # f2 is visited, because it is similar to f1, so there is no need to compare it with other files
+    #                 print(f1, f2, i1, i2)
+    #                 i1 = i2
+    #                 break
+    #         if i2 == len(files[:max])-1: # if chain is over, break
+    #             break
+    #         i1 += 1
 
     # for i in tqdm(range(0, len(files[:max-1]))):
     #     for j in range(i+1, len(files[:max])):
@@ -86,10 +86,12 @@ def main():
     
     
     # run it in parallel with multiprocessing
-    # pool = multiprocessing.Pool(processes=8)
-    # for i, f1 in tqdm(enumerate(files[:10])):
-    #     rcmd = partial(run_command, f1)
-    #     pool.map(rcmd, files[i:11])
+    pool = multiprocessing.Pool(processes=8)
+
+    for i in tqdm(range(0, len(files[:100]))):
+        f1 = files[i]
+        rcmd = partial(run_command, f1)
+        pool.map(rcmd, files[i:100])
         
 
 
