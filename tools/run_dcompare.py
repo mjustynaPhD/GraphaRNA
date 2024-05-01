@@ -28,6 +28,19 @@ def read_list(list_file):
     return files
 
 def main():
+    """
+    Main Idea of Algorithm
+    ----------------------
+    A -> B
+    B -> C
+    C -> D
+
+    This means A is similar to B, B is similar to C, and C is similar to D, so A is similar to D and we don't need to compare A with C and D.
+    
+    If A is similar to B, then we break the loop and start comparing from B (as we assume that all similar childs of B are similar to A).
+
+    """
+
     list_file = sys.argv[1]
     files = read_list(list_file)
     f_visited = {}
@@ -39,28 +52,28 @@ def main():
     # if A is similar to B, then break. Add B to the chain of A
     # start from B, compare with all other C. if C is similar to B, then break. Add C to the chain of A and B
     
-    max = 20
-    for i in tqdm(range(len(files[:max-1]))):
-        if files[i] in f_visited:
+    max = len(files)
+    for i in tqdm(range(len(files[:max-1]))): # iterate over all files
+        if files[i] in f_visited: # skip files already visited
             continue
         i1 = i
         top_level_f1 = None
-        while i1 < len(files[:max-1]):
+        while i1 < len(files[:max-1]): # try to find a chain (a sequence of similar files)
             f1 = files[i1]
             if top_level_f1 is None:
                 top_level_f1 = f1
-            f_visited[f1] = True
+            f_visited[f1] = True # this file is already visited so we will skip it in the future iterations
 
             for i2 in range(i1+1, len(files[:max])):
                 f2 = files[i2]
                 if run_command(f1, f2):
-                    chain[top_level_f1] = chain.get(top_level_f1, [])
+                    chain[top_level_f1] = chain.get(top_level_f1, []) # add childs to the chain
                     chain[top_level_f1].append(f2)
-                    f_visited[f2] = True
+                    f_visited[f2] = True # f2 is visited, because it is similar to f1, so there is no need to compare it with other files
                     print(f1, f2, i1, i2)
                     i1 = i2
                     break
-            if i2 == len(files[:max])-1: # if chain is over
+            if i2 == len(files[:max])-1: # if chain is over, break
                 break
             i1 += 1
 
