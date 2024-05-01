@@ -50,6 +50,16 @@
                 "--mode",
                 "coarse-grain"
             ]
+        },
+        {
+            "name": "Run dcompare",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "tools/run_dcompare.py",
+            "console": "integratedTerminal",
+            "args": [
+                "/data/3d/input_data/descs/segments_3-output.txt",
+            ]
         }
 
     ]
