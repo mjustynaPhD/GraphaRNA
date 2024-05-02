@@ -129,8 +129,10 @@ class PAMNet(nn.Module):
             x = torch.cat([x_pos, x, time_emb], dim=1)
             # x = torch.cat([x, time_emb], dim=1)
             
-
-            row, col = knn(pos, pos, 5, batch, batch) # TODO: Do we need 50 clusters? Maybe less...?
+            # TODO:
+            # Encode the connectivity between atoms in the graph. Do not include only distance based connections,
+            # because the clusters of atoms do not overlap and we do not pass the information along the graph.
+            row, col = knn(pos, pos, 10, batch, batch)
             edge_index_knn = torch.stack([row, col], dim=0)
             edge_index_knn, dist_knn = self.get_edge_info(edge_index_knn, pos)
 
