@@ -8,9 +8,6 @@ from Bio.PDB import PDBParser
 from rnapolis.annotator import extract_secondary_structure
 from rnapolis.parser import read_3d_structure
 # from torch_geometric.data import Data
-import warnings
-from Bio import BiopythonWarning
-warnings.simplefilter('ignore', BiopythonWarning)
 
 ATOM_TYPES = {
             'C': 0,   #C
@@ -72,7 +69,6 @@ def load_with_bio(molecule_file):
     atoms_elements = []
     atoms_names = []
     residues_names = []
-    p_missing = []
     c4_prime = []
     c2 = []
     c4_or_c6 = []
@@ -80,21 +76,16 @@ def load_with_bio(molecule_file):
     for model in structure:
         for chain in model:
             for residue in chain:
-                p_is_missing = True
                 for atom in residue:
                     coords.append(atom.get_coord())
                     atoms_elements.append(atom.element)
                     atoms_names.append(atom.get_name())
                     residues_names.append(residue.get_resname())
-                    if atom.get_name() == "P":
-                        p_is_missing = False
                     c4_prime.append(atom.get_name() == "C4'")
                     c2.append(atom.get_name() == "C2")
                     c4_or_c6.append(atom.get_name() == "C4" or atom.get_name() == "C6")
                     n1_or_n9.append(atom.get_name() == "N1" or atom.get_name() == "N9")
-                p_missing.append(p_is_missing)
-
-    return np.array(coords), atoms_elements, atoms_names, residues_names, p_missing, c4_prime, c2, c4_or_c6, n1_or_n9
+    return np.array(coords), atoms_elements, atoms_names, residues_names, c4_prime, c2, c4_or_c6, n1_or_n9
 
 def get_xyz_from_mol(mol):
     xyz = np.zeros((mol.GetNumAtoms(), 3))
@@ -111,7 +102,7 @@ def get_coarse_grain_mask(symbols, residues):
     mask = [True if atom in coars_atoms else False for atom, coars_atoms in zip(symbols, coarse_atoms)]
     return np.array(mask)
 
-def get_edges_in_COO(data:dict, seq_segments:list[str], p_missing:list[bool], bpseq: list[tuple[int, int]] = None):
+def get_edges_in_COO(data:dict, seq_segments:list[str], bpseq: list[tuple[int, int]] = None):
     # Order of encoded atoms: "P", "C4'", "Nx", "C2", "Cx"
     edges = []
     edge_type = [] # True: covalent, False: other interaction
@@ -128,9 +119,9 @@ def get_edges_in_COO(data:dict, seq_segments:list[str], p_missing:list[bool], bp
 
     added = 0
     for index in np.concatenate([np.array([0]), segments_lengs[:-1]]):
-        if p_missing[index]: # the missing P can occur only in the first residue of the segment
+        if p[index*5 - added] == False:
             combined = np.concatenate([combined[:index*5], np.array([[True, False, False, False, False]]), combined[index*5:]])
-            nodes_indecies = np.concatenate([nodes_indecies[:index*5], np.array([nodes_indecies[index*5]]), nodes_indecies[index*5:]]) # add "fake" P atom, with the same node index (that will be filtered out later).
+            nodes_indecies = np.concatenate([nodes_indecies[:index*5], np.array([nodes_indecies[index*5]]), nodes_indecies[index*5:]])
             added += 1
     
     combined = combined.reshape((-1, 5, 5))
@@ -138,7 +129,7 @@ def get_edges_in_COO(data:dict, seq_segments:list[str], p_missing:list[bool], bp
     comb_arg_max = np.argmax(combined, axis=2) # sometimes the order of atoms is 0,1,2,3,4, and sometimes it's different
     for res_ni, res_arg_max in zip(nodes_indecies, comb_arg_max): # create edges in each residue
         for i, j in RESIDUE_CONNECTION_GRAPH:
-            edge = [res_ni[np.where(res_arg_max == i)[0]], res_ni[np.where(res_arg_max == j)[0]]]
+            edge = [res_ni[res_arg_max[i]], res_ni[res_arg_max[j]]]
             if edge[0] == edge[1]: # remove self loops, effect of adding missing P atoms
                 continue
             edges.append(edge)
@@ -148,8 +139,8 @@ def get_edges_in_COO(data:dict, seq_segments:list[str], p_missing:list[bool], bp
     for i in range(1, len(nodes_indecies)):
         if i in segments_lengs:
             continue
-        prev_c4p = nodes_indecies[i-1][np.where(comb_arg_max[i-1] == 1)[0]] # C4' atom index in previous residue
-        curr_p = nodes_indecies[i][np.where(comb_arg_max[i] == 0)[0]] # P atom index in current residue
+        prev_c4p = nodes_indecies[i-1][comb_arg_max[i-1][1]] # C4' atom index in previous residue
+        curr_p = nodes_indecies[i][comb_arg_max[i][0]] # P atom index in current residue
         edges.append([prev_c4p, curr_p])
         edges.append([curr_p, prev_c4p])
         edge_type.extend([True, True])
@@ -158,10 +149,10 @@ def get_edges_in_COO(data:dict, seq_segments:list[str], p_missing:list[bool], bp
     if bpseq is not None:
         for pair in bpseq:
             for i in range(2, 5): # atoms: N, C2, Cx
-                at1 = nodes_indecies[pair[0]][np.where(comb_arg_max[pair[0]] == i)[0]] # atom i (e.g. N) connect with the corresponding atom in the paired residue
-                at2 = nodes_indecies[pair[1]][np.where(comb_arg_max[pair[1]] == i)[0]]
-                edges.append([at1, at2])
-                edges.append([at2, at1])
+                p1 = nodes_indecies[pair[0]][comb_arg_max[pair[0]][i]] # atom i (e.g. N) connect with the corresponding atom in the paired residue
+                p2 = nodes_indecies[pair[1]][comb_arg_max[pair[1]][i]]
+                edges.append([p1, p2])
+                edges.append([p2, p1])
                 edge_type.extend([False, False])
     assert len(edges) == len(edge_type)
     return edges, edge_type
@@ -227,7 +218,7 @@ def construct_graphs(seq_dir, pdbs_dir, save_dir, save_name):
         #     continue
         
         try:
-            rna_coords, elements, atoms_symbols, residues_names, p_missing, c4_primes, c2, c4_or_c6, n1_or_n9 = load_with_bio(rna_file)
+            rna_coords, elements, atoms_symbols, residues_names, c4_primes, c2, c4_or_c6, n1_or_n9 = load_with_bio(rna_file)
         except ValueError:
             print("Error reading molecule", rna_file)
             continue
@@ -267,8 +258,8 @@ def construct_graphs(seq_dir, pdbs_dir, save_dir, save_name):
         data['c2'] = np.array(c2)[crs_gr_mask]
         data['c4_or_c6'] = np.array(c4_or_c6)[crs_gr_mask]
         data['n1_or_n9'] = np.array(n1_or_n9)[crs_gr_mask]
-        edges, edge_type = get_edges_in_COO(data, seq_segments, p_missing=p_missing, bpseq=res_pairs)
-        data['edges'] = np.array(edges)
+        edges, edge_type = get_edges_in_COO(data, seq_segments, bpseq=res_pairs)
+        data['edges'] = edges
         data['edge_type'] = edge_type
 
         with open(os.path.join(save_dir_full, name.replace(".pdb", ".pkl")), "wb") as f:
@@ -276,24 +267,18 @@ def construct_graphs(seq_dir, pdbs_dir, save_dir, save_name):
 
 
 def main():
-    data_dir = "/home/mjustyna/data/"
-    seq_dir = os.path.join(data_dir, "bgsu-seq")
-    pdbs_dir = os.path.join(data_dir, "bgsu-pdbs-unpack")
-
     # data_dir = "/home/mjustyna/data/test_structs/"
     # seq_dir = os.path.join(data_dir, "seqs")
     # pdbs_dir = os.path.join(data_dir, "pdbs")
     
-    # data_dir = "/home/mjustyna/data/"
-    # seq_dir = os.path.join(data_dir, "sim_desc")
-    # pdbs_dir = os.path.join(data_dir, "desc-pdbs")
+    data_dir = "/home/mjustyna/data/"
+    seq_dir = os.path.join(data_dir, "sim_desc")
+    pdbs_dir = os.path.join(data_dir, "desc-pdbs")
     
     save_dir = os.path.join(".", "data", "RNA-PDB")
     
-    construct_graphs(seq_dir, pdbs_dir, save_dir, "bgsu-pkl")
+    construct_graphs(seq_dir, pdbs_dir, save_dir, "desc-pkl")
     # construct_graphs(seq_dir, pdbs_dir, save_dir, "test-pkl")
-    # construct_graphs(seq_dir, pdbs_dir, save_dir, "desc-pkl")
-    
 
 if __name__ == "__main__":
     main()
