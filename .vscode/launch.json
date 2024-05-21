@@ -60,6 +60,13 @@
             "args": [
                 "/data/3d/input_data/descs/segments_3-output.txt",
             ]
+        },
+        {
+            "name": "Run Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
         }
 
     ]
