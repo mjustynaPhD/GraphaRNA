@@ -4,7 +4,7 @@ from torch_geometric.loader import DataLoader
 from models import PAMNet, Config
 from datasets import RNAPDBDataset
 from utils import Sampler, SampleToPDB
-from main_rna_pdb import sample
+from main_rna_pdb_diffusion import sample
 
 def main():
     parser = argparse.ArgumentParser()

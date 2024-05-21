@@ -8,19 +8,16 @@
             "name": "Train PDBs",
             "type": "debugpy",
             "request": "launch",
-            "program": "main_rna_pdb.py",
+            "program": "main_rna_pdb_supervised.py",
             "console": "integratedTerminal",
             "args": [
                 "--dataset",
-                "RNA-PDB",
-                "--epochs=501",
+                "descs",
+                "--epochs=100",
                 "--batch_size=64",
                 "--dim=128",
                 "--n_layer=8",
                 "--lr=1e-3",
-                "--timesteps=500",
-                "--mode",
-                "coarse-grain"
             ]
         },
         {
@@ -67,7 +64,14 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-        }
+        },
+        {
+            "name": "Run SimRNA",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "tools/create_SimRNA_entry_models.py",
+            "console": "integratedTerminal",
+        },
 
     ]
 }
