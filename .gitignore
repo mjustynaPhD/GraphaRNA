@@ -10,3 +10,4 @@ tools/out/*
 # files
 *.pyc
 rna_gnn.egg-info/*
+*.out
