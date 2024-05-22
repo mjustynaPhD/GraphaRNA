@@ -11,3 +11,6 @@ tools/out/*
 *.pyc
 rna_gnn.egg-info/*
 *.out
+*.log
+tools/out*
+*.txt

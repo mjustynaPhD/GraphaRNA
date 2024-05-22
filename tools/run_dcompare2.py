@@ -31,7 +31,7 @@ def main():
             bases.append((base1, base2))
             if len(bases) == 100:
                 print(i)
-                with multiprocessing.Pool(8) as p:
+                with multiprocessing.Pool(6) as p:
                     p.map(run_command, bases)
                 bases = []
 

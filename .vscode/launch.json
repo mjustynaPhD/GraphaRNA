@@ -59,6 +59,13 @@
             ]
         },
         {
+            "name": "Run Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+        },
+        {
             "name": "Run SimRNA",
             "type": "debugpy",
             "request": "launch",
