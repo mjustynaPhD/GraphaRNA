@@ -8,7 +8,7 @@ from functools import partial
 import numpy as np
 
 FILES_PATH = '/data/3d/input_data/desc-pdbs/'
-OUT_DIR = 'tools/out2/'
+OUT_DIR = 'tools/out3-1segment/'
 
 def run_command(bases):
     base1, base2 = bases
@@ -28,8 +28,8 @@ def run_command(bases):
     else:
         return False
 
-def get_ignored_ids():
-    tmp_files = os.listdir(OUT_DIR)
+def get_ignored_ids(path):
+    tmp_files = os.listdir(path)
     ignore = {}
     for f in tmp_files:
         # file format is '1CSL_1_B-A_A_45_C-1CSL_1_B-A_A_46_G.txt', which is base1-base2.txt
@@ -44,7 +44,7 @@ def get_ignored_ids():
         id1 = f[1:].find(name2)
         name1 = f[:id1]
         name2 = f[id1+1:].replace('.txt', '')
-        if os.path.getsize(f'{OUT_DIR}/{f}') > 0 and name1 != name2:
+        if os.path.getsize(f'{path}/{f}') > 0 and name1 != name2:
             ignore[name2] = True
 
     return ignore
@@ -56,8 +56,8 @@ def add_to_ignored(results, bases, ignore):
     return ignore
 
 def main():
-    list_file = "tools/descs-seg-2.csv"
-    ignore = get_ignored_ids()
+    list_file = "tools/descs-seg-1.csv" # "tools/descs-seg-2.csv"
+    ignore = get_ignored_ids(OUT_DIR)
     print(f"Ignoring {len(ignore)}")
     with open(list_file) as f:
         bases=[]
