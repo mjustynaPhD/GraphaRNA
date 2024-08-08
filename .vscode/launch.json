@@ -1,0 +1,102 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Train PDBs",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "main_rna_pdb_single.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--dataset",
+                "RNA-PDB-clean",
+                "--epochs=101",
+                "--batch_size=8",
+                "--dim=256",
+                "--n_layer=4",
+                "--lr=1e-3",
+                "--timesteps=5000",
+                "--mode",
+                "coarse-grain",
+                "--knn=20"
+            ]
+        },
+        {
+            "name": "Preprocess PDBs",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "preprocess_rna_pdb.py",
+            "console": "integratedTerminal",
+            "args": [
+            ]
+        },
+        {
+            "name": "Sample",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "sample_rna_pdb.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--dataset",
+                "RNA-PDB",
+                "--seed",
+                "40",
+                "--epochs=501",
+                "--batch_size=64",
+                "--dim=256",
+                "--n_layer=4",
+                "--lr=1e-3",
+                "--timesteps=4000",
+                "--mode",
+                "coarse-grain",
+                "--knns",
+                "5"
+            ]
+        },
+        {
+            "name": "BGSU",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "tools/extract_bgsu_seq.py",
+            "console": "integratedTerminal",
+        },
+        {
+            "name": "Current Python file",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Evaluate Predictions",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "evaluate_predictions.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--preds-path=/home/mjustyna/RNA-GNN/samples/glowing-terrain-25-j3/800/",
+                // "--templates-path=/home/mjustyna/data/desc-pdbs/",
+                // "--targets-path=/home/mjustyna/data/desc-pdbs/",
+                "--templates-path=/home/mjustyna/data/motifs/j3_pdbs/",
+                "--targets-path=/home/mjustyna/data/motifs/j3_pdbs/",
+                // "--templates-path=/home/mjustyna/RNA-GNN/user_inputs/pdbs/",
+                "--sim_rna=/home/mjustyna/software/SimRNA_64bitIntel_Linux_staticLibs_withoutOpenMP",
+            ]
+        },
+        {
+            "name": "User Input",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "prepare_user_input.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--input-dir=user_inputs",
+            ]
+        },
+
+
+    ]
+}

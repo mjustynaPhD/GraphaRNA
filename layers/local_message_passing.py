@@ -7,9 +7,10 @@ from layers import MLP, Res
 
 
 class Local_MessagePassing(torch.nn.Module):
-    def __init__(self, config):
+    def __init__(self, dim, out_dim=12):
         super(Local_MessagePassing, self).__init__()
-        self.dim = config.dim
+        self.dim = dim
+        self.out_dim = out_dim
 
         self.mlp_x1 = MLP([self.dim, self.dim])
         self.mlp_m_ji = MLP([3 * self.dim, self.dim])
@@ -25,8 +26,10 @@ class Local_MessagePassing(torch.nn.Module):
         self.mlp_x2 = MLP([self.dim, self.dim])
         
         self.mlp_out = MLP([self.dim, self.dim, self.dim, self.dim])
-        self.W_out = nn.Linear(self.dim, 1)
-        self.W = nn.Parameter(torch.Tensor(self.dim, 1))
+        self.W_out = nn.Linear(self.dim, self.out_dim)
+        self.W = nn.Parameter(torch.Tensor(self.dim, self.out_dim))
+        self.lnorm = nn.LayerNorm(self.out_dim)
+        self.silu_act = nn.SiLU()
 
         self.init()
 
@@ -61,7 +64,9 @@ class Local_MessagePassing(torch.nn.Module):
 
         out = self.mlp_out(x)
         att_score = out.matmul(self.W).unsqueeze(0)
-        out = self.W_out(out).unsqueeze(0)
+        out = self.W_out(out) #.unsqueeze(0)
+        out = self.lnorm(out).unsqueeze(0)
+        out = self.silu_act(out)
 
         return x, out, att_score
 

@@ -1,0 +1,13 @@
+# directories
+artifacts/*
+data/*
+wandb/*
+save/*
+tests/test_output/*
+samples/*
+user_inputs/*
+
+# files
+*.pyc
+rna_gnn.egg-info/*
+*.out

@@ -1,7 +1,7 @@
 import os
 from tqdm import tqdm
 
-DATASET_PATH = "/home/mjustyna/RNA-GNN/data/RNA-PDB-noncan/"
+DATASET_PATH = "/home/mjustyna/RNA-GNN/data/RNA-PDB-clean/"
 
 def main():
     ignored_ids_file = "all_ignored.ids"
