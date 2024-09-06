@@ -9,6 +9,7 @@ import pandas as pd
 import warnings
 from Bio import BiopythonWarning
 from pymol import cmd
+import barnaba as bb
 warnings.simplefilter('ignore', BiopythonWarning)
 
 from rnapolis.annotator import extract_secondary_structure
@@ -68,7 +69,7 @@ def superimpose_pdbs(trafl_path, targets_path, out_postfix='-000001_AA.pdb', met
     outs = []
     for pdb in tqdm(pdbs):
         base_name = pdb.replace(out_postfix, '')
-        pdb_name = base_name + '.pdb'
+        pdb_name = base_name + '.pdb' if not base_name.endswith('.pdb') else base_name
         if os.path.exists(f"{targets_path}/{pdb_name}"):
             ref_2d_structure = extract_2d_structure(f"{targets_path}/{pdb_name}")
             pred_2d_structure = extract_2d_structure(f"{trafl_path}/{pdb}")
@@ -82,7 +83,8 @@ def superimpose_pdbs(trafl_path, targets_path, out_postfix='-000001_AA.pdb', met
                 rms = align_pymol(trafl_path, targets_path, pdb, pdb_name)
             elif method == 'biopython':
                 rms = align_biopython(trafl_path, targets_path, pdb, pdb_name)
-            outs.append((pdb, rms, round(inf, 3)))
+            ermsd = bb.ermsd(f"{targets_path}/{pdb_name}", f"{trafl_path}/{pdb}")[0]
+            outs.append((pdb, rms, round(ermsd, 3), round(inf, 3)))
             
         else:
             print(f"Skipping {pdb} as the target pdb file: {targets_path}/{pdb_name} does not exist")
@@ -123,13 +125,14 @@ def main():
     # out_postfix = '.seq-000001_AA.pdb'
     generate_pdbs_from_trafl(args.preds_path, args.templates_path, args.sim_rna, args.overwrite) #, out_postfix=out_postfix, pdb_postfix=".pdb")
     print("Superimposing...")
-    outs = superimpose_pdbs(args.preds_path, args.targets_path) #, out_postfix=out_postfix)
+    outs = superimpose_pdbs(args.preds_path, args.targets_path)#, out_postfix="", method="pymol")
     print("Results:")
-    df = pd.DataFrame(outs, columns=['pdb', 'rms', 'inf'])
+    df = pd.DataFrame(outs, columns=['pdb', 'rms', 'ermsd', 'inf'])
     # sort df by rms column
     df = df.sort_values(by='rms', ascending=True)
     print(df.head())
     print(f"Mean RMSD: {df['rms'].mean()}, Median RMSD: {df['rms'].median()}")
+    print(f"Mean eRMSD: {df['ermsd'].mean()}, Median eRMSD: {df['ermsd'].median()}")
     print(f"Mean INF: {df['inf'].mean()}, Median INF: {df['inf'].median()}")
     df.to_csv(args.output_name, index=False)
     print(f"Results saved to {args.output_name}")
