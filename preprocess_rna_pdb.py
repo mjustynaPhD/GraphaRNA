@@ -290,7 +290,7 @@ def construct_graphs(seq_dir, pdbs_dir, save_dir, save_name, file_3d_type:str=".
 
 def main():
     extended_dotbracket = False
-    data_dir = "/home/mjustyna/data/motifs/"
+    data_dir = "/home/mjustyna/data/"
     seq_dir = os.path.join(data_dir, "hl_seqs")
     pdbs_dir = os.path.join(data_dir, "hl_pdbs")
     save_dir = os.path.join(".", "data", "RNA-bgsu-hl-cn")

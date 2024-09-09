@@ -40,20 +40,12 @@
             "program": "sample_rna_pdb.py",
             "console": "integratedTerminal",
             "args": [
-                "--dataset",
-                "RNA-PDB",
-                "--seed",
-                "40",
-                "--epochs=501",
+                "--seed=0"
                 "--batch_size=64",
                 "--dim=256",
-                "--n_layer=4",
-                "--lr=1e-3",
-                "--timesteps=4000",
-                "--mode",
-                "coarse-grain",
-                "--knns",
-                "5"
+                "--n_layer=6",
+                "--timesteps=5000",
+                "--knns=20",
             ]
         },
         {
