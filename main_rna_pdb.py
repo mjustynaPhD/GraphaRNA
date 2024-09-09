@@ -122,9 +122,6 @@ def main(world_size):
     config = Config(dataset=args.dataset, dim=args.dim, n_layer=args.n_layer, cutoff_l=args.cutoff_l, cutoff_g=args.cutoff_g, mode=args.mode, knns=args.knns)
 
     model = PAMNet(config).to(device)
-    # model_path = f"save/vague-wood-323/model_290.h5"
-    # model.load_state_dict(torch.load(model_path))
-    # model.to(device)
     model = DDP(model, device_ids=[rank], find_unused_parameters=True)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     scheduler = StepLR(optimizer, step_size=args.lr_step, gamma=args.lr_gamma)
@@ -161,24 +158,15 @@ def main(world_size):
                 denoise_losses = []
             elif not args.wandb and rank == 0:
                 print(f"Epoch: {epoch}, step: {step}, loss: {loss_all.item():.4f} ")
-                # val_loss, val_denoise_loss = test(model, val_loader, device, sampler, args)
-                # print(f'Val Loss: {val_loss:.4f}, Val Denoise Loss: {val_denoise_loss:.4f}')
             step += 1
         scheduler.step()
         
-        # val_loss, val_denoise_loss = test(model, val_loader, device, sampler, args)
-
-
         if args.wandb and rank == 0 and losses:
             wandb.log({'Train Loss': np.mean(losses), 'Val Loss': val_loss, 'Denoise Loss': np.mean(denoise_losses), 'Val Denoise Loss': val_denoise_loss, "LR": scheduler.get_last_lr()[0]})
         if rank == 0:
             print(f'Epoch: {epoch+1}, Loss: {np.mean(losses):.4f}, Denoise Loss: {np.mean(denoise_losses):.4f}, Val Loss: {val_loss:.4f}, Val Denoise Loss: {val_denoise_loss:.4f}, LR: {scheduler.get_last_lr()[0]}')
         
-        # if rank ==0:
-        #     sample(model, samp_loader, device, sampler, epoch=epoch, num_batches=1, exp_name=exp_name)
 
-        # if epoch % 5 == 0 and rank == 0:
-        #     sample(model, samp_loader, device, sampler, epoch=epoch, num_batches=1, exp_name=exp_name)
         
         save_folder = f"./save/{exp_name}"
         if not os.path.exists(save_folder) and rank==0:
@@ -188,9 +176,6 @@ def main(world_size):
             print(f"Saving model at epoch {epoch} to {save_folder}")
             torch.save(model.module.state_dict(), f"{save_folder}/model_{epoch}.h5")
 
-        # if best_val_loss is None or val_loss < best_val_loss:
-        #     best_val_loss = val_loss
-        #     torch.save(model.state_dict(), os.path.join(save_folder, "best_model.h5"))
     if rank == 0:
         torch.save(model.module.state_dict(), f"{save_folder}/model_{epoch}.h5")
     
@@ -209,5 +194,4 @@ if __name__ == "__main__":
     print(f"Number of GPUs: {n_gpus}")
     assert n_gpus >= 2, f"Requires at least 2 GPUs to run, but got {n_gpus}"
     world_size = n_gpus
-    # run(main, world_size)
     main(world_size=world_size)
