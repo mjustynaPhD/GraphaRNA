@@ -26,10 +26,21 @@ Clone this repository and install the required dependencies using the following 
 ```
 git clone git@github.com:mjustynaPhD/RNAgrail.git
 cd RNAgrail
-pip install -r requirements.txt
+conda env create --name gnn -f environment.yml
 ```
 
 Ensure you have **Python 3.10+** and **PyTorch 2.3.0+** installed, along with **PyTorch Geometric** for handling the graph components.
+
+#### Install RiNALMo
+
+RiNALMo is a key component of RNAgrail. To install that follow the instruction:
+```
+git clone https://github.com/lbcb-sci/RiNALMo
+cd RiNALMo
+pip install .
+pip install flash-attn==2.3.2
+```
+
 
 #### Install SimRNA
 
