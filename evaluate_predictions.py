@@ -125,15 +125,15 @@ def main():
     # out_postfix = '.seq-000001_AA.pdb'
     generate_pdbs_from_trafl(args.preds_path, args.templates_path, args.sim_rna, args.overwrite) #, out_postfix=out_postfix, pdb_postfix=".pdb")
     print("Superimposing...")
-    outs = superimpose_pdbs(args.preds_path, args.targets_path)#, out_postfix="", method="pymol")
+    outs = superimpose_pdbs(args.preds_path, args.targets_path) #, out_postfix="", method="pymol")
     print("Results:")
     df = pd.DataFrame(outs, columns=['pdb', 'rms', 'ermsd', 'inf'])
     # sort df by rms column
     df = df.sort_values(by='rms', ascending=True)
     print(df.head())
-    print(f"Mean RMSD: {df['rms'].mean()}, Median RMSD: {df['rms'].median()}")
-    print(f"Mean eRMSD: {df['ermsd'].mean()}, Median eRMSD: {df['ermsd'].median()}")
-    print(f"Mean INF: {df['inf'].mean()}, Median INF: {df['inf'].median()}")
+    print(f"Mean RMSD: {df['rms'].mean()}, Std: {df['rms'].std()}, Median RMSD: {df['rms'].median()}")
+    print(f"Mean eRMSD: {df['ermsd'].mean()}, Std: {df['ermsd'].std()}, Median eRMSD: {df['ermsd'].median()}")
+    print(f"Mean INF: {df['inf'].mean()}, Std: {df['inf'].std()}, Median INF: {df['inf'].median()}")
     df.to_csv(args.output_name, index=False)
     print(f"Results saved to {args.output_name}")
     pass
