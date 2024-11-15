@@ -55,6 +55,7 @@ def sample(model, loader, device, sampler, epoch, num_batches=None, exp_name: st
             print(f"Sample batch {s_counter}")
             data = data.to(device)
             samples = sampler.sample(model, seqs, data)[-1]
+            s.to('pdb', samples, f"./samples/{exp_name}/{epoch}", name)
             s.to('xyz', samples, f"./samples/{exp_name}/{epoch}", name)
             s.to('trafl', samples, f"./samples/{exp_name}/{epoch}", name)
             s_counter += 1

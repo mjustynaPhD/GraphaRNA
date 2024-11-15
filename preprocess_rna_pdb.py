@@ -310,11 +310,11 @@ def main():
     # seq_dir = os.path.join(data_dir, "seqs")
     # pdbs_dir = os.path.join(data_dir, "pdbs")
 
-    data_dir = "/home/mjustyna/data/"
+    data_dir = "/home/mjustyna/data/eval_examples_pdb/"
     seq_dir = None
-    pdbs_dir = os.path.join(data_dir, "full_PDB")
-    save_dir = os.path.join(".", "data", "full-pdbs")
-    construct_graphs(seq_dir, pdbs_dir, save_dir, "train-pkl", file_3d_type='.pdb', extended_dotbracket=extended_dotbracket)
+    pdbs_dir = os.path.join(data_dir, "clean")
+    save_dir = os.path.join(".", "data", "eval-clean-pdbs")
+    construct_graphs(seq_dir, pdbs_dir, save_dir, "test-pkl", file_3d_type='.pdb', extended_dotbracket=extended_dotbracket)
     
     # data_dir = "/home/mjustyna/data/"
     # seq_dir = os.path.join(data_dir, "sim_desc")
