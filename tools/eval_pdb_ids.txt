@@ -1,0 +1,46 @@
+4PCJ|34|Chain A|Hairpin
+430D|28|Chain A|Sarcin-ricin
+4JAB|16|Chain AB|wobble duplex
+7EDT|30|Chain AB|Duplex with spermine
+5CNR|27|Chain AB|self-assembling RNA nano triangles
+5VCI|34|Chain AB|Hairpin with tetraloop motif
+5VJ9|16|Chain A|Guanidine-II riboswitch P2 hairpin dimer
+5LR3|19|Chain AB|RNA duplex has central consecutive GA pairs flanked by G-U basepairs
+5V3F|31|Chain A|RNA Mango
+5FJ0|19|Chain AB|Structure of the standard kink turn HmKt-7 as simple duplex in P4222 space group
+6E8U|38|Chain A|Mango-III (A10U) aptamer bound to TO1-Biotin
+6E1S|32|Chain A|riboswitch complexed
+6YML|25|Chain AB|Crystal structure of the SAM-SAH riboswitch with decarboxylated SAH
+6Q8V|18|Chain A|kink turn HmKt-7 variant A2bm6A.
+6XRQ|15|Chain AB|ligand interactions to DNA and RNA quadruplexes
+8FZA|30|Chain A|CASP-15
+7QR3|69|Chain C|CASP-15 / Puzzle-36
+7QR4|69|Chain B|CASP-15 / Puzzle-37
+7V9E|68|Chain A|Puzzle-34
+7ELQ|46|Chain A|Puzzle-33
+7EOJ|49|Chain A|Puzzle-32
+7MLX|65|Chain C|Puzzle-32
+8D28|33|Chain A|theophylline aptamer in complex
+8HB8|55|Chain A|Puzzle-38
+8HZE|35|Chain A|fluorescent RNA aptamer bound with N (chain A)
+8GXC|60|Chain A|Puzzle-37
+8QMH|18|Chain ABCD|G2C4 repeats in complex with small synthetic molecule ANP77
+8ITS|46|Chain A|k-junction
+8U5Z|35|Chain A|G-quadruplex
+
+2DR8|33|Chain B
+3OVA|34|Chain C
+1JBR|31|Chain D
+2HW8|36|Chain B
+1ZHO|38|Chain B
+3IAB|46|Chain R
+1I6U|37|Chain C
+2PXL|47|Chain B
+2VPL|48|Chain B
+2PXB|49|Chain B
+
+
+# Quadruples
+8U5Z|35|Chain A|G-quadruplex
+7ZQS|30|Chain A|Cryo-EM Structure of Human Transferrin Receptor 1 (DNA)
+8UTG|20|Chain A|G-Quadruplex from the NS5 gene
