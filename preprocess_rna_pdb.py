@@ -49,6 +49,9 @@ def load_with_bio(molecule_file, file_type:str=".pdb"):
     for model in structure:
         for chain in model:
             for residue in chain:
+                # HETATM are residues as well, skip them.
+                if residue.id[0].startswith('H_'):
+                    continue
                 p_is_missing = True
                 for atom in residue:
                     coords.append(atom.get_coord())
@@ -173,7 +176,7 @@ def get_bpseq_pairs(rna_file, seq_path, extended_dotbracket=True):
             dot = structure2d.extendedDotBracket.split('\n')
         else:
             dot = structure2d.dotBracket.split('\n')
-        seq_segments = dot_to_segments(dot)
+        dot, seq_segments = dotbrackets_to_single_line(dot)
     res_pairs = dot_to_bpseq(dot)
     return res_pairs, seq_segments
 
@@ -181,20 +184,17 @@ def dot_to_segments(dot):
     segments = [seg for seg in dot[1::3]]
     return segments
 
+def dotbrackets_to_single_line(dot):
+    segments = dot_to_segments(dot)
+    dotb = [db for db in dot[2::3]]
+    segments_s = " ".join(segments)
+    return dotb, segments
+
 def dot_to_bpseq(dot):
     stack = {}
     bpseq = []
-    for dot_line in dot[2:]:
-        dot_line = dot_line.strip()
-        if dot_line.startswith(">") or dot_line.startswith("seq") or dot_line[0] not in DOT_OPENINGS + list(DOT_CLOSINGS_MAP.keys()) + ["."]:
-            continue
-        else:
-            dot_line = dot_line.split(' ')
-        if len(dot_line) > 1:
-            dot_line = dot_line[1]
-        else:
-            dot_line = dot_line[0]
-    
+    for dot_line in dot:
+        
         for i, x in enumerate(dot_line):
             assert x in DOT_OPENINGS + list(DOT_CLOSINGS_MAP.keys()) + ["."], f"Invalid character in dotbracket: {x}"
             if x not in stack and x != ".":
