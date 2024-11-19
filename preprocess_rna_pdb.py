@@ -12,7 +12,7 @@ import warnings
 from Bio import BiopythonWarning
 warnings.simplefilter('ignore', BiopythonWarning)
 from constants import RESIDUES, ATOM_TYPES, RESIDUE_CONNECTION_GRAPH,\
-    DOT_OPENINGS, DOT_CLOSINGS_MAP, KEEP_ELEMENTS, COARSE_GRAIN_MAP
+    DOT_OPENINGS, DOT_CLOSINGS_MAP, KEEP_ELEMENTS, COARSE_GRAIN_MAP, ATOM_ELEMENTS
 
 def load_molecule(molecule_file):
     if ".mol2" in molecule_file:
@@ -67,6 +67,37 @@ def load_with_bio(molecule_file, file_type:str=".pdb"):
                 p_missing.append(p_is_missing)
 
     return np.array(coords), atoms_elements, atoms_names, residues_names, p_missing, c4_prime, c2, c4_or_c6, n1_or_n9
+
+def generate_atoms(seq_segments):
+    # TODO:
+    # czasami brakuje atomów. W przypadku inferencji trzeba dodać "fake" atomy.
+    # do treningu trzeba dodawać całe reszty pomijając atomy, których nie ma.
+    # To będzie mieć konsekwencję w tworzeniu grafu.
+    coords = []
+    atoms_elements = []
+    atoms_names = []
+    residues_names = []
+    p_missing = []
+    c4_prime = []
+    c2 = []
+    c4_or_c6 = []
+    n1_or_n9 = []
+    for segment in seq_segments:
+        for resi in segment:
+            if resi == 'T': # in case of DNA sequences convert to RNA
+                resi = 'U'
+            for atom in COARSE_GRAIN_MAP[resi]:
+                coords.append([0,0,0])
+                atoms_elements.append(ATOM_ELEMENTS[atom])
+                atoms_names.append(atom)
+                residues_names.append(resi)
+                p_missing.append(False)
+                c4_prime.append(atom == "C4'")
+                c2.append(atom == "C2")
+                c4_or_c6.append(atom == "C4" or atom == "C6")
+                n1_or_n9.append(atom == "N1" or atom == "N9")
+    return np.array(coords), atoms_elements, atoms_names, residues_names, p_missing, c4_prime, c2, c4_or_c6, n1_or_n9
+# missing 7MLX and 6E8U
 
 def get_xyz_from_mol(mol):
     xyz = np.zeros((mol.GetNumAtoms(), 3))
@@ -205,8 +236,7 @@ def dot_to_bpseq(dot):
                 bpseq.append((stack[DOT_CLOSINGS_MAP[x]].pop(), i))
     return bpseq
 
-
-def construct_graphs(seq_dir, pdbs_dir, save_dir, save_name, file_3d_type:str=".pdb", extended_dotbracket:bool=True):
+def construct_graphs(seq_dir, pdbs_dir, save_dir, save_name, file_3d_type:str=".pdb", extended_dotbracket:bool=True, sampling:bool=False):
     save_dir_full = os.path.join(save_dir, save_name)
 
     if not os.path.exists(save_dir_full):
@@ -239,18 +269,22 @@ def construct_graphs(seq_dir, pdbs_dir, save_dir, save_name, file_3d_type:str=".
         if not os.path.exists(rna_file):
             print("File not found", rna_file)
             continue
-        try:
-            rna_coords, elements, atoms_symbols, residues_names, p_missing, c4_primes, c2, c4_or_c6, n1_or_n9 = load_with_bio(rna_file, file_3d_type)
-        except ValueError:
-            print("Error reading molecule", rna_file)
-            continue
-        except Bio.PDB.PDBExceptions.PDBConstructionException as e:
-            print("Error reading molecule (invalid or missing coordinate)", rna_file)
-            continue
-
+        
 
         res_pairs, seq_segments = get_bpseq_pairs(rna_file, seq_path=seq_path, extended_dotbracket=extended_dotbracket)
 
+        if sampling:
+            rna_coords, elements, atoms_symbols, residues_names, p_missing, c4_primes, c2, c4_or_c6, n1_or_n9 = generate_atoms(seq_segments)
+            pass
+        else:
+            try:
+                rna_coords, elements, atoms_symbols, residues_names, p_missing, c4_primes, c2, c4_or_c6, n1_or_n9 = load_with_bio(rna_file, file_3d_type)
+            except ValueError:
+                print("Error reading molecule", rna_file)
+                continue
+            except Bio.PDB.PDBExceptions.PDBConstructionException as e:
+                print("Error reading molecule (invalid or missing coordinate)", rna_file)
+                continue
 
         elem_indices = set([i for i,x in enumerate(elements) if x in KEEP_ELEMENTS]) # keep only C, N, O, P atoms, remove all the others
         res_indices = set([i for i,x in enumerate(residues_names) if x in RESIDUES.keys()]) # keep only A, G, U, C residues, remove all the others
@@ -314,7 +348,7 @@ def main():
     seq_dir = None
     pdbs_dir = os.path.join(data_dir, "clean")
     save_dir = os.path.join(".", "data", "eval-clean-pdbs")
-    construct_graphs(seq_dir, pdbs_dir, save_dir, "test-pkl", file_3d_type='.pdb', extended_dotbracket=extended_dotbracket)
+    construct_graphs(seq_dir, pdbs_dir, save_dir, "test-pkl", file_3d_type='.pdb', extended_dotbracket=extended_dotbracket, sampling=True)
     
     # data_dir = "/home/mjustyna/data/"
     # seq_dir = os.path.join(data_dir, "sim_desc")

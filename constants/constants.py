@@ -19,6 +19,16 @@ REV_RESIDUES = {v: k for k, v in RESIDUES.items()}
 
 KEEP_ELEMENTS = ['C', 'N', 'O', 'P']
 
+ATOM_ELEMENTS = {
+    'P': 'P',
+    'C4\'': 'C',
+    'N9': 'N',
+    'N1': 'N',
+    'C4': 'C',
+    'C2': 'C',
+    'C6': 'C',
+}
+
 COARSE_GRAIN_MAP = {
         'A': ["P", "C4'", "N9", "C2", "C6"],
         'G': ["P", "C4'", "N9", "C2", "C6"],
