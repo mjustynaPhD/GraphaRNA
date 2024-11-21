@@ -3,7 +3,7 @@ import Bio
 import Bio.PDB
 import numpy as np
 from torch import Tensor
-from constants import REV_ATOM_TYPES, RIBOSE, BASES
+from constants import REV_ATOM_TYPES, RIBOSE, BASES, REV_RESIDUES
 
 
 class SampleToPDB():
@@ -27,7 +27,9 @@ class SampleToPDB():
                 print("Cannot save molecules with missing P atom.")
 
     def write_xyz(self, x, path, name, post_fix:str='', rnd_dig:int=4):
-        atoms_pos, atom_names = self.get_atoms_pos_and_types(x)
+        atoms = self.get_atoms_pos_and_types(x)
+        atoms_pos = atoms['atoms_pos']
+        atom_names = atoms['atom_names']
 
         name = name.replace(".pdb", "")
         name = name + post_fix
@@ -60,7 +62,9 @@ class SampleToPDB():
         Raises:
             ValueError: If the number of atoms is not divisible by 5. The number of atoms should be a multiple of 5. Cannot save to trafl with missing P atom.
         """
-        atoms_pos, atom_names = self.get_atoms_pos_and_types(x)
+        atoms = self.get_atoms_pos_and_types(x)
+        atoms_pos = atoms['atoms_pos']
+        atom_names = atoms['atom_names']
         atom_names = np.array(atom_names)
         if len(atoms_pos) % 5 != 0:
             raise ValueError("The number of atoms is not divisible by 5. The number of atoms should be a multiple of 5. Cannot save to trafl with missing P atom.")
@@ -96,9 +100,9 @@ class SampleToPDB():
         pass
 
     def write_pdb(self, x, path, name):
-        atoms_pos, atom_names = self.get_atoms_pos_and_types(x)
+        atoms = self.get_atoms_pos_and_types(x)
     
-        structure = self.create_structure(atoms_pos, atom_names, name)
+        structure = self.create_structure(atoms, name)
         
         name = name + '.pdb' if not name.endswith('.pdb') else name
         # Save the structure as a PDB file
@@ -113,10 +117,25 @@ class SampleToPDB():
         atoms_pos *= 10
         atoms_types = x[:, 3:7].cpu().numpy()
         atom_names = [REV_ATOM_TYPES[np.argmax(atom)] for atom in atoms_types]
-        return atoms_pos, atom_names
+        residues = x[:, 7:11].cpu().numpy()
+        residues = np.argmax(residues, axis=1)
+        c4_prime = x[:, 11].cpu().numpy()
+        c2 = x[:, 12].cpu().numpy()
+        c4_or_c6 = x[:, 13].cpu().numpy()
+        n1_or_n9 = x[:, 14].cpu().numpy()
+        out = {
+            'atoms_pos': atoms_pos,
+            'atom_names': atom_names,
+            'residues': residues,
+            'c4_prime': c4_prime,
+            'c2': c2,
+            'c4_or_c6': c4_or_c6,
+            'n1_or_n9': n1_or_n9
+        }
+        return out
 
 
-    def create_structure(self, coords, atoms, name):
+    def create_structure(self, atoms, name):
         # Create an empty structure
         structure = Bio.PDB.Structure.Structure(name)
         
@@ -128,20 +147,48 @@ class SampleToPDB():
         chain = Bio.PDB.Chain.Chain('A')
         model.add(chain)
         
+        coords = atoms['atoms_pos']
+        atoms_names = atoms['atom_names']
+        residues = atoms['residues']
+        c4_primes = atoms['c4_prime']
+        c2 = atoms['c2']
+        c4_or_c6 = atoms['c4_or_c6']
+        n1_or_n9 = atoms['n1_or_n9']
+
         # Create atoms and add them to the chain
-        residue_id = 1
-        for coord, atom in zip(coords, atoms):
-            residue_name = 'A' # atom.get_parent().get_resname()
-            
-            # Create a residue
-            residue = Bio.PDB.Residue.Residue((' ', residue_id, ' '), residue_name, ' ')
-            chain.add(residue)
-            
-            # Create an atom
-            new_atom = Bio.PDB.Atom.Atom(atom, coord, 0, 0, ' ', atom, 0, ' ')
-            residue.add(new_atom)
-            residue_id += 1
+        residue_id = 0
+        atoms_added = 0
+        assert len(atoms_names) % 5 == 0, "The number of atoms should be a multiple of 5"
         
+        for coord, atom, res, c4p, c2, c4or6, n1or9 in zip(coords, atoms_names, residues, c4_primes, c2, c4_or_c6, n1_or_n9):
+            residue_name = REV_RESIDUES[res]
+            if atoms_added % 5 == 0:
+                residue_id += 1
+                residue = Bio.PDB.Residue.Residue((' ', residue_id, ' '), residue_name, ' ')
+                chain.add(residue)
+            
+            if residue_name == 'A' or residue_name == 'G':
+                c46_name = 'C6'
+                n19_name = 'N9'
+            elif residue_name == 'U' or residue_name == 'C':
+                c46_name = 'C4'
+                n19_name = 'N1'
+
+            # Create an atom
+            if atom == 'P':
+                new_atom = Bio.PDB.Atom.Atom(atom, coord, 0, 0, ' ', atom, 0, atom)
+            elif c4p:
+                new_atom = Bio.PDB.Atom.Atom('C4\'', coord, 0, 0, ' ', 'C4\'', 0, atom)
+            elif c2:
+                new_atom = Bio.PDB.Atom.Atom('C2', coord, 0, 0, ' ', 'C2', 0, atom)
+            elif c4or6:
+                new_atom = Bio.PDB.Atom.Atom(c46_name, coord, 0, 0, ' ', c46_name, 0, atom)
+            elif n1or9:
+                new_atom = Bio.PDB.Atom.Atom(n19_name, coord, 0, 0, ' ', n19_name, 0, atom)
+
+            residue.add(new_atom)
+            atoms_added += 1
+            
         return structure
     
     def extract_structural_templates(self, path, name):

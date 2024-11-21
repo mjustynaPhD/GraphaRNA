@@ -51,12 +51,12 @@ def main():
     print("Device: ", device)
     model.to(device)
     # ds = RNAPDBDataset("data/user_inputs/", name='test-pkl', mode='coarse-grain')
-    ds = RNAPDBDataset("data/eval-pdb/", name='test-pkl', mode='coarse-grain')
+    ds = RNAPDBDataset("data/eval-clean-pdbs/", name='test-pkl', mode='coarse-grain')
     # ds = RNAPDBDataset("data/RNA-PDB-clean/", name='test-pkl', mode='coarse-grain')
     ds_loader = DataLoader(ds, batch_size=args.batch_size, shuffle=False, pin_memory=True)
     sampler = Sampler(timesteps=args.timesteps)
     print("Sampling...")
-    sample(model, ds_loader, device, sampler, epoch, num_batches=None, exp_name=f"{exp_name}-eval-samps")
+    sample(model, ds_loader, device, sampler, epoch, num_batches=None, exp_name=f"{exp_name}-eval-clean")
     print(f"Results stored in path: samples/{exp_name}")
 
 if __name__ == "__main__":

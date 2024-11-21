@@ -46,6 +46,7 @@ def load_with_bio(molecule_file, file_type:str=".pdb"):
     c2 = []
     c4_or_c6 = []
     n1_or_n9 = []
+    res_in_chain = []
     for model in structure:
         for chain in model:
             for residue in chain:
@@ -64,9 +65,10 @@ def load_with_bio(molecule_file, file_type:str=".pdb"):
                     c2.append(atom.get_name() == "C2")
                     c4_or_c6.append(atom.get_name() == "C4" or atom.get_name() == "C6")
                     n1_or_n9.append(atom.get_name() == "N1" or atom.get_name() == "N9")
+                    res_in_chain.append(chain.id)
                 p_missing.append(p_is_missing)
 
-    return np.array(coords), atoms_elements, atoms_names, residues_names, p_missing, c4_prime, c2, c4_or_c6, n1_or_n9
+    return np.array(coords), atoms_elements, atoms_names, residues_names, p_missing, c4_prime, c2, c4_or_c6, n1_or_n9, res_in_chain
 
 def generate_atoms(seq_segments):
     # TODO:
@@ -82,7 +84,9 @@ def generate_atoms(seq_segments):
     c2 = []
     c4_or_c6 = []
     n1_or_n9 = []
+    res_in_chain = []
     for segment in seq_segments:
+        chain = 'A'
         for resi in segment:
             if resi == 'T': # in case of DNA sequences convert to RNA
                 resi = 'U'
@@ -96,7 +100,9 @@ def generate_atoms(seq_segments):
                 c2.append(atom == "C2")
                 c4_or_c6.append(atom == "C4" or atom == "C6")
                 n1_or_n9.append(atom == "N1" or atom == "N9")
-    return np.array(coords), atoms_elements, atoms_names, residues_names, p_missing, c4_prime, c2, c4_or_c6, n1_or_n9
+                res_in_chain.append(chain)
+        chain = chr(ord(chain) + 1)
+    return np.array(coords), atoms_elements, atoms_names, residues_names, p_missing, c4_prime, c2, c4_or_c6, n1_or_n9, res_in_chain
 # missing 7MLX and 6E8U
 
 def get_xyz_from_mol(mol):
@@ -274,11 +280,11 @@ def construct_graphs(seq_dir, pdbs_dir, save_dir, save_name, file_3d_type:str=".
         res_pairs, seq_segments = get_bpseq_pairs(rna_file, seq_path=seq_path, extended_dotbracket=extended_dotbracket)
 
         if sampling:
-            rna_coords, elements, atoms_symbols, residues_names, p_missing, c4_primes, c2, c4_or_c6, n1_or_n9 = generate_atoms(seq_segments)
+            rna_coords, elements, atoms_symbols, residues_names, p_missing, c4_primes, c2, c4_or_c6, n1_or_n9, chains = generate_atoms(seq_segments)
             pass
         else:
             try:
-                rna_coords, elements, atoms_symbols, residues_names, p_missing, c4_primes, c2, c4_or_c6, n1_or_n9 = load_with_bio(rna_file, file_3d_type)
+                rna_coords, elements, atoms_symbols, residues_names, p_missing, c4_primes, c2, c4_or_c6, n1_or_n9, chains = load_with_bio(rna_file, file_3d_type)
             except ValueError:
                 print("Error reading molecule", rna_file)
                 continue
@@ -316,6 +322,7 @@ def construct_graphs(seq_dir, pdbs_dir, save_dir, save_name, file_3d_type:str=".
         data['c2'] = np.array(c2)[crs_gr_mask]
         data['c4_or_c6'] = np.array(c4_or_c6)[crs_gr_mask]
         data['n1_or_n9'] = np.array(n1_or_n9)[crs_gr_mask]
+        data['chains'] = np.array(chains)[crs_gr_mask]
         try:
             edges, edge_type = get_edges_in_COO(data, seq_segments, p_missing=p_missing, bpseq=res_pairs)
         except ValueError as e:
