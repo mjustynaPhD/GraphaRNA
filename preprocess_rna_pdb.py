@@ -71,10 +71,6 @@ def load_with_bio(molecule_file, file_type:str=".pdb"):
     return np.array(coords), atoms_elements, atoms_names, residues_names, p_missing, c4_prime, c2, c4_or_c6, n1_or_n9, res_in_chain
 
 def generate_atoms(seq_segments):
-    # TODO:
-    # czasami brakuje atomów. W przypadku inferencji trzeba dodać "fake" atomy.
-    # do treningu trzeba dodawać całe reszty pomijając atomy, których nie ma.
-    # To będzie mieć konsekwencję w tworzeniu grafu.
     coords = []
     atoms_elements = []
     atoms_names = []
@@ -103,7 +99,6 @@ def generate_atoms(seq_segments):
                 res_in_chain.append(chain)
         chain = chr(ord(chain) + 1)
     return np.array(coords), atoms_elements, atoms_names, residues_names, p_missing, c4_prime, c2, c4_or_c6, n1_or_n9, res_in_chain
-# missing 7MLX and 6E8U
 
 def get_xyz_from_mol(mol):
     xyz = np.zeros((mol.GetNumAtoms(), 3))
@@ -127,7 +122,7 @@ def get_edges_in_COO(data:dict, seq_segments:list[str], p_missing:list[bool], bp
     if seq_segments is not None:
         segments_lengs = [len(x) for x in seq_segments]
         segments_lengs = np.cumsum(segments_lengs) # get the end index of each segment
-        indicies = np.concatenate([np.array([0]), segments_lengs[:-1]])
+        indicies = np.concatenate([np.array([0]), segments_lengs[:-1]]).astype(int)        
     else:
         segments_lengs = []
         indicies = np.array([0])
@@ -224,25 +219,34 @@ def dot_to_segments(dot):
 def dotbrackets_to_single_line(dot):
     segments = dot_to_segments(dot)
     dotb = [db for db in dot[2::3]]
-    segments_s = " ".join(segments)
     return dotb, segments
 
 def dot_to_bpseq(dot):
     stack = {}
     bpseq = []
-    for dot_line in dot:
-        
-        for i, x in enumerate(dot_line):
-            assert x in DOT_OPENINGS + list(DOT_CLOSINGS_MAP.keys()) + ["."], f"Invalid character in dotbracket: {x}"
-            if x not in stack and x != ".":
-                    stack[x] = []
-            if x in DOT_OPENINGS:
-                stack[x].append(i)
-            elif x in DOT_CLOSINGS_MAP:
-                bpseq.append((stack[DOT_CLOSINGS_MAP[x]].pop(), i))
+    dot_line = "".join(dot)
+    for i, x in enumerate(dot_line):
+        assert x in DOT_OPENINGS + list(DOT_CLOSINGS_MAP.keys()) + ["."], f"Invalid character in dotbracket: {x}"
+        if x not in stack and x != ".":
+                stack[x] = []
+        if x in DOT_OPENINGS:
+            stack[x].append(i)
+        elif x in DOT_CLOSINGS_MAP:
+            bpseq.append((stack[DOT_CLOSINGS_MAP[x]].pop(), i))
     return bpseq
 
 def construct_graphs(seq_dir, pdbs_dir, save_dir, save_name, file_3d_type:str=".pdb", extended_dotbracket:bool=True, sampling:bool=False):
+    """
+    
+    Args:
+        seq_dir: directory with .seq files
+        pdbs_dir: directory with 3D structures
+        save_dir: directory to save the graphs
+        save_name: name of the file to save the graphs
+        file_3d_type: type of 3D structure files
+        extended_dotbracket: if True, include non-canonical pairings in 2D structure
+        sampling: if True, skips reading coordinates and generates fake atoms. For sampling ONLY.
+    """
     save_dir_full = os.path.join(save_dir, save_name)
 
     if not os.path.exists(save_dir_full):
@@ -279,9 +283,9 @@ def construct_graphs(seq_dir, pdbs_dir, save_dir, save_name, file_3d_type:str=".
 
         res_pairs, seq_segments = get_bpseq_pairs(rna_file, seq_path=seq_path, extended_dotbracket=extended_dotbracket)
 
+
         if sampling:
             rna_coords, elements, atoms_symbols, residues_names, p_missing, c4_primes, c2, c4_or_c6, n1_or_n9, chains = generate_atoms(seq_segments)
-            pass
         else:
             try:
                 rna_coords, elements, atoms_symbols, residues_names, p_missing, c4_primes, c2, c4_or_c6, n1_or_n9, chains = load_with_bio(rna_file, file_3d_type)
@@ -322,12 +326,12 @@ def construct_graphs(seq_dir, pdbs_dir, save_dir, save_name, file_3d_type:str=".
         data['c2'] = np.array(c2)[crs_gr_mask]
         data['c4_or_c6'] = np.array(c4_or_c6)[crs_gr_mask]
         data['n1_or_n9'] = np.array(n1_or_n9)[crs_gr_mask]
-        data['chains'] = np.array(chains)[crs_gr_mask]
+        # data['chains'] = np.array(chains)[crs_gr_mask]
         try:
             edges, edge_type = get_edges_in_COO(data, seq_segments, p_missing=p_missing, bpseq=res_pairs)
-        except ValueError as e:
-            print(f"Value Error in processing {name}: {e}")
-            continue
+        # except ValueError as e:
+        #     print(f"Value Error in processing {name}: {e}")
+        #     continue
         except IndexError as e:
             print(f"Index Error in processing {name}: {e}")
             continue
@@ -351,11 +355,11 @@ def main():
     # seq_dir = os.path.join(data_dir, "seqs")
     # pdbs_dir = os.path.join(data_dir, "pdbs")
 
-    data_dir = "/home/mjustyna/data/eval_examples_pdb/"
+    data_dir = "/home/mjustyna/data/rna3db-mmcifs/"
     seq_dir = None
-    pdbs_dir = os.path.join(data_dir, "clean")
-    save_dir = os.path.join(".", "data", "eval-clean-pdbs")
-    construct_graphs(seq_dir, pdbs_dir, save_dir, "test-pkl", file_3d_type='.pdb', extended_dotbracket=extended_dotbracket, sampling=True)
+    pdbs_dir = os.path.join(data_dir, "train-500")
+    save_dir = os.path.join(".", "data", "rna3db")
+    construct_graphs(seq_dir, pdbs_dir, save_dir, "train-pkl", file_3d_type='.cif', extended_dotbracket=extended_dotbracket, sampling=False)
     
     # data_dir = "/home/mjustyna/data/"
     # seq_dir = os.path.join(data_dir, "sim_desc")

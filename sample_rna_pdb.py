@@ -56,7 +56,7 @@ def main():
     ds_loader = DataLoader(ds, batch_size=args.batch_size, shuffle=False, pin_memory=True)
     sampler = Sampler(timesteps=args.timesteps)
     print("Sampling...")
-    sample(model, ds_loader, device, sampler, epoch, num_batches=None, exp_name=f"{exp_name}-eval-clean")
+    sample(model, ds_loader, device, sampler, epoch, num_batches=None, exp_name=f"{exp_name}-eval-clean-seed={args.seed}")
     print(f"Results stored in path: samples/{exp_name}")
 
 if __name__ == "__main__":
