@@ -50,7 +50,7 @@ def load_with_bio(molecule_file, seq_segments, file_type:str=".pdb"):
                 # HETATM are residues as well, skip them.
                 if residue.id[0].startswith('H_') or\
                    residue.get_resname() not in RESIDUES.keys() or\
-                   res_id >= len(seq_segments): # sometimes there is 
+                   res_id >= len(seq_segments[0]): # sometimes there is 
                     continue
 
 
@@ -292,6 +292,9 @@ def construct_graphs(seq_dir, pdbs_dir, save_dir, save_name, file_3d_type:str=".
         
 
         res_pairs, seq_segments = get_bpseq_pairs(rna_file, seq_path=seq_path, extended_dotbracket=extended_dotbracket)
+        if not seq_segments:
+            print("Error reading sequence", rna_file)
+            continue
 
 
         if sampling:

@@ -114,7 +114,7 @@ class SampleToPDB():
 
     def get_atoms_pos_and_types(self, x):
         atoms_pos = x[:, :3].cpu().numpy()
-        atoms_pos *= 10
+        # atoms_pos *= 10
         atoms_types = x[:, 3:7].cpu().numpy()
         atom_names = [REV_ATOM_TYPES[np.argmax(atom)] for atom in atoms_types]
         residues = x[:, 7:11].cpu().numpy()
