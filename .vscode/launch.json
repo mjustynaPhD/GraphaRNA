@@ -12,16 +12,16 @@
             "console": "integratedTerminal",
             "args": [
                 "--dataset",
-                "RNA-PDB-clean",
-                "--epochs=101",
-                "--batch_size=8",
-                "--dim=256",
-                "--n_layer=4",
+                "rna3db",
+                "--epochs=5",
+                "--batch_size=2",
+                "--dim=64",
+                "--n_layer=2",
                 "--lr=1e-3",
-                "--timesteps=5000",
+                "--timesteps=500",
                 "--mode",
                 "coarse-grain",
-                "--knn=20"
+                "--knn=2"
             ]
         },
         {

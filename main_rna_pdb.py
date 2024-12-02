@@ -37,10 +37,11 @@ def validation(model, loader, device, sampler, args):
     denoise_losses = []
     with torch.no_grad():
         for data, name, seqs in loader:
+            mask = data.x[:, -1].bool()
             data = data.to(device)
             t = torch.randint(0, args.timesteps, (args.batch_size,), device=device).long() # Generate random timesteps
             graphs_t = t[data.batch]
-            loss, denoise_loss = p_losses(model, data, seqs, graphs_t, sampler=sampler, loss_type="huber")
+            loss, denoise_loss = p_losses(model, data, seqs, graphs_t, sampler=sampler, loss_type="huber", mask=mask)
             losses.append(loss.item())
             denoise_losses.append(denoise_loss.item())
     model.train()
@@ -56,8 +57,8 @@ def sample(model, loader, device, sampler, epoch, num_batches=None, exp_name: st
             data = data.to(device)
             samples = sampler.sample(model, seqs, data)[-1]
             s.to('pdb', samples, f"./samples/{exp_name}/{epoch}", name)
-            s.to('xyz', samples, f"./samples/{exp_name}/{epoch}", name)
-            s.to('trafl', samples, f"./samples/{exp_name}/{epoch}", name)
+            # s.to('xyz', samples, f"./samples/{exp_name}/{epoch}", name)
+            # s.to('trafl', samples, f"./samples/{exp_name}/{epoch}", name)
             s_counter += 1
 
             if num_batches is not None and s_counter >= num_batches:
@@ -78,8 +79,8 @@ def main(world_size):
     parser.add_argument('--n_layer', type=int, default=2, help='Number of hidden layers.')
     parser.add_argument('--dim', type=int, default=64, help='Size of input hidden units.')
     parser.add_argument('--batch_size', type=int, default=8, help='batch_size')
-    parser.add_argument('--cutoff_l', type=float, default=0.5, help='cutoff in local layer')
-    parser.add_argument('--cutoff_g', type=float, default=1.60, help='cutoff in global layer')
+    parser.add_argument('--cutoff_l', type=float, default=5, help='cutoff in local layer')
+    parser.add_argument('--cutoff_g', type=float, default=16, help='cutoff in global layer')
     parser.add_argument('--timesteps', type=int, default=500, help='timesteps')
     parser.add_argument('--wandb', action='store_true', help='Use wandb for logging')
     parser.add_argument('--mode', type=str, default='coarse-grain', help='Mode of the dataset')
@@ -94,7 +95,7 @@ def main(world_size):
 
     if args.wandb and rank == 0:
         wandb.login()
-        run = wandb.init(project='RNA-GNN-Diff-SeqEncoder', config=args)
+        run = wandb.init(project='RNA-GNN-Full-RNAs', config=args)
         exp_name = run.name
     else:
         exp_name = "test"
@@ -128,6 +129,7 @@ def main(world_size):
     scheduler = StepLR(optimizer, step_size=args.lr_step, gamma=args.lr_gamma)
     
     print("Start training!")
+    torch.autograd.set_detect_anomaly(True)
     
     dist.barrier()
     for epoch in range(args.epochs):
@@ -136,17 +138,17 @@ def main(world_size):
         losses = []
         denoise_losses = []
         for data, name, seqs in train_loader:
-            
+            mask = data.x[:, -1].bool()
             data = data.to(device)
             optimizer.zero_grad()
 
             t = torch.randint(0, args.timesteps, (args.batch_size,), device=device).long() # Generate random timesteps
             graphs_t = t[data.batch]
             
-            loss_all, loss_denoise = p_losses(model, data, seqs, graphs_t, sampler=sampler, loss_type="huber")
+            loss_all, loss_denoise = p_losses(model, data, seqs, graphs_t, sampler=sampler, loss_type="huber", mask=mask)
 
             loss_all.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 2.0) # prevent exploding gradients
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0) # prevent exploding gradients
             optimizer.step()
             losses.append(loss_all.item())
             denoise_losses.append(loss_denoise.item())

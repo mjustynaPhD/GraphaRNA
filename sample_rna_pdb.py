@@ -28,8 +28,8 @@ def main():
     parser.add_argument('--n_layer', type=int, default=4, help='Number of hidden layers.')
     parser.add_argument('--dim', type=int, default=64, help='Size of input hidden units.')
     parser.add_argument('--batch_size', type=int, default=8, help='batch_size')
-    parser.add_argument('--cutoff_l', type=float, default=0.5, help='cutoff in local layer')
-    parser.add_argument('--cutoff_g', type=float, default=1.6, help='cutoff in global layer')
+    parser.add_argument('--cutoff_l', type=float, default=5, help='cutoff in local layer')
+    parser.add_argument('--cutoff_g', type=float, default=16, help='cutoff in global layer')
     parser.add_argument('--timesteps', type=int, default=4000, help='timesteps')
     parser.add_argument('--wandb', action='store_true', help='Use wandb for logging')
     parser.add_argument('--mode', type=str, default='coarse-grain', help='Mode of the dataset')
@@ -39,8 +39,8 @@ def main():
     print('Seed:', args.seed)
     set_seed(args.seed)
     # Load the model
-    exp_name = "glowing-terrain-25"
-    epoch = 800
+    exp_name = "charmed-jazz-58"
+    epoch = 10
     model_path = f"save/{exp_name}/model_{epoch}.h5"
     config = Config(dataset=args.dataset, dim=args.dim, n_layer=args.n_layer, cutoff_l=args.cutoff_l, cutoff_g=args.cutoff_g, mode=args.mode, knns=args.knns)
     model = PAMNet(config)
@@ -51,12 +51,12 @@ def main():
     print("Device: ", device)
     model.to(device)
     # ds = RNAPDBDataset("data/user_inputs/", name='test-pkl', mode='coarse-grain')
-    ds = RNAPDBDataset("data/eval-clean-pdbs/", name='test-pkl', mode='coarse-grain')
+    ds = RNAPDBDataset("data/rna3db/", name='train-pkl', mode='coarse-grain')
     # ds = RNAPDBDataset("data/RNA-PDB-clean/", name='test-pkl', mode='coarse-grain')
     ds_loader = DataLoader(ds, batch_size=args.batch_size, shuffle=False, pin_memory=True)
     sampler = Sampler(timesteps=args.timesteps)
     print("Sampling...")
-    sample(model, ds_loader, device, sampler, epoch, num_batches=None, exp_name=f"{exp_name}-eval-clean-seed={args.seed}")
+    sample(model, ds_loader, device, sampler, epoch, num_batches=None, exp_name=f"{exp_name}-rna3db-seed={args.seed}")
     print(f"Results stored in path: samples/{exp_name}")
 
 if __name__ == "__main__":
