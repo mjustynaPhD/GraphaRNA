@@ -52,7 +52,13 @@ def load_with_bio(molecule_file, seq_segments, file_type:str=".pdb"):
                    residue.get_resname() not in RESIDUES.keys() or\
                    res_id >= len(seq_segments[0]): # sometimes there is 
                     continue
-
+                
+                if residue.get_resname() == 'U' or residue.get_resname() == 'C':
+                    pur_pir_C = 'C4'
+                    pur_pir_N = 'N1'
+                elif residue.get_resname() == 'A' or residue.get_resname() == 'G':
+                    pur_pir_C = 'C6'
+                    pur_pir_N = 'N9'
 
                 res_coords = coords_in_residue[res_id]
                 res_coords_update = [False]*5
@@ -63,13 +69,13 @@ def load_with_bio(molecule_file, seq_segments, file_type:str=".pdb"):
                     elif atom.get_name() == "C4'":
                         res_coords[1] = atom.get_coord()
                         res_coords_update[1] = True
-                    elif atom.get_name() == "N1" or atom.get_name() == "N9":
+                    elif atom.get_name() == pur_pir_N:
                         res_coords[2] = atom.get_coord()
                         res_coords_update[2] = True
                     elif atom.get_name() == "C2":
                         res_coords[3] = atom.get_coord()
                         res_coords_update[3] = True
-                    elif atom.get_name() == "C4" or atom.get_name() == "C6":
+                    elif atom.get_name() == pur_pir_C:
                         res_coords[4] = atom.get_coord()
                         res_coords_update[4] = True
                 if sum(res_coords_update) >= 3: # if at least 3 atoms are present, consider the residue as present
@@ -374,9 +380,9 @@ def main():
 
     data_dir = "/home/mjustyna/data/rna3db-mmcifs/"
     seq_dir = None
-    pdbs_dir = os.path.join(data_dir, "test-500")
+    pdbs_dir = os.path.join(data_dir, "train-500")
     save_dir = os.path.join(".", "data", "rna3db")
-    construct_graphs(seq_dir, pdbs_dir, save_dir, "test-pkl", file_3d_type='.cif', extended_dotbracket=extended_dotbracket, sampling=False)
+    construct_graphs(seq_dir, pdbs_dir, save_dir, "train-pkl", file_3d_type='.cif', extended_dotbracket=extended_dotbracket, sampling=False)
     
     # data_dir = "/home/mjustyna/data/"
     # seq_dir = os.path.join(data_dir, "sim_desc")

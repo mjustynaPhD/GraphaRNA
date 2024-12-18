@@ -3,7 +3,7 @@ import torch
 from torch_geometric.loader import DataLoader
 from models import PAMNet, Config
 from datasets import RNAPDBDataset
-from utils import Sampler, SampleToPDB
+from utils import Sampler
 from main_rna_pdb import sample
 
 from torch_geometric import seed_everything
@@ -34,15 +34,24 @@ def main():
     parser.add_argument('--wandb', action='store_true', help='Use wandb for logging')
     parser.add_argument('--mode', type=str, default='coarse-grain', help='Mode of the dataset')
     parser.add_argument('--knns', type=int, default=5, help='Number of knns')
+    parser.add_argument('--blocks', type=int, default=4, help='Number of transformer blocks')
     args = parser.parse_args()
 
     print('Seed:', args.seed)
     set_seed(args.seed)
     # Load the model
-    exp_name = "charmed-jazz-58"
-    epoch = 10
+    exp_name = "exalted-terrain-98"
+    epoch = 1500
     model_path = f"save/{exp_name}/model_{epoch}.h5"
-    config = Config(dataset=args.dataset, dim=args.dim, n_layer=args.n_layer, cutoff_l=args.cutoff_l, cutoff_g=args.cutoff_g, mode=args.mode, knns=args.knns)
+    config = Config(dataset=args.dataset,
+                    dim=args.dim,
+                    n_layer=args.n_layer,
+                    cutoff_l=args.cutoff_l,
+                    cutoff_g=args.cutoff_g,
+                    mode=args.mode,
+                    knns=args.knns,
+                    transformer_blocks=args.blocks
+                    )
     model = PAMNet(config)
     model.load_state_dict(torch.load(model_path))
     print("Model loaded!")

@@ -3,7 +3,7 @@ import Bio
 import Bio.PDB
 import numpy as np
 from torch import Tensor
-from constants import REV_ATOM_TYPES, RIBOSE, BASES, REV_RESIDUES
+from constants import REV_ATOM_TYPES, REV_RESIDUES
 
 
 class SampleToPDB():
@@ -83,7 +83,7 @@ class SampleToPDB():
         out_path = os.path.join(path, name)
         c=0
         with open(out_path, 'w') as f:
-            header = f"1 1 0 0 0"
+            header = "1 1 0 0 0"
             f.write(header + "\n")
             for atom, pos, orders in zip(atom_names, atoms_pos, p_c4p_c2_c46_n19):
                 argmaxs = np.argmax(orders, axis=1)
@@ -190,27 +190,3 @@ class SampleToPDB():
             atoms_added += 1
             
         return structure
-    
-    def extract_structural_templates(self, path, name):
-        # read the pdb file
-        # extract the atom positions for ribose (with phosphate) and bases
-        # save the extracted atoms as a xyz files
-        ribose_atoms = []
-        bases_atoms = {}
-
-        structure = Bio.PDB.PDBParser().get_structure(name, path)
-        for model in structure:
-            for chain in model:
-                for residue in chain:
-                    if residue.get_resname() == 'A':
-                        # Extract the atom positions for ribose (with phosphate) and bases
-                        ribose = residue['C1\'']
-                        phosphate = residue['P']
-                        base = residue['N9']
-                        # Save the extracted atoms as a xyz files
-                        self.write_xyz(np.array([ribose.get_coord(), phosphate.get_coord(), base.get_coord()]), path, name, post_fix='_extracted')
-                    else:
-                        pass
-
-        pass
-        

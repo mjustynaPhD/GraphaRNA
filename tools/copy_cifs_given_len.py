@@ -5,8 +5,8 @@ from rnapolis.parser import read_3d_structure
 from tqdm import tqdm
 
 
-data_dir = '/home/mjustyna/data/rna3db-mmcifs/test_cifs/'
-output_dir = '/home/mjustyna/data/rna3db-mmcifs/test-500/'
+data_dir = '/home/mjustyna/data/rna3db-mmcifs/train_cifs/'
+output_dir = '/home/mjustyna/data/rna3db-mmcifs/train-300/'
 
 files = os.listdir(data_dir)
 files = [f for f in files if f.endswith('.cif')]
@@ -21,5 +21,5 @@ for f in tqdm(files):
 
     with open(os.path.join(data_dir, f), 'r') as file:
         structure3d = read_3d_structure(file, 1)
-        if len(structure3d.residues) <= 500:
+        if len(structure3d.residues) <= 300:
             shutil.copy(os.path.join(data_dir, f), os.path.join(output_dir, f))
