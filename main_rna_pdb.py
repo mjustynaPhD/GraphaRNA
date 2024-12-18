@@ -4,7 +4,6 @@ import argparse
 import numpy as np
 import random
 import torch
-import torch.nn.functional as F
 import torch.optim as optim
 import torch.distributed as dist
 import torch.multiprocessing as mp
@@ -87,6 +86,8 @@ def main(world_size):
     parser.add_argument('--lr-step', type=int, default=30, help='Step size for learning rate scheduler')
     parser.add_argument('--lr-gamma', type=float, default=0.9, help='Gamma for learning rate scheduler')
     parser.add_argument('--knns', type=int, default=2, help='Number of knn neighbors')
+    parser.add_argument('--blocks', type=int, default=4, help='Number of transformer blocks in the model')
+    parser.add_argument('--load', action='store_true', help='Path to the model to load')
     args = parser.parse_args()
     
     # setup(rank, world_size)
@@ -121,9 +122,21 @@ def main(world_size):
         break
 
     sampler = Sampler(timesteps=args.timesteps)
-    config = Config(dataset=args.dataset, dim=args.dim, n_layer=args.n_layer, cutoff_l=args.cutoff_l, cutoff_g=args.cutoff_g, mode=args.mode, knns=args.knns)
+    config = Config(dataset=args.dataset,
+                    dim=args.dim,
+                    n_layer=args.n_layer,
+                    cutoff_l=args.cutoff_l,
+                    cutoff_g=args.cutoff_g,
+                    mode=args.mode,
+                    knns=args.knns,
+                    transformer_blocks=args.blocks
+                    )
 
     model = PAMNet(config).to(device)
+    # load state dict of a pre-trained model
+    if args.load:
+        model.load_state_dict(torch.load("save/exalted-terrain-98/model_1590.h5"))
+
     model = DDP(model, device_ids=[rank], find_unused_parameters=True)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     scheduler = StepLR(optimizer, step_size=args.lr_step, gamma=args.lr_gamma)
@@ -175,7 +188,7 @@ def main(world_size):
         if not os.path.exists(save_folder) and rank==0:
             os.makedirs(save_folder)
 
-        if epoch %5 == 0 and rank==0:
+        if epoch % 10 == 0 and epoch > 0 and rank==0:
             print(f"Saving model at epoch {epoch} to {save_folder}")
             torch.save(model.module.state_dict(), f"{save_folder}/model_{epoch}.h5")
 

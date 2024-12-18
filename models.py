@@ -11,7 +11,7 @@ from layers import Global_MessagePassing, Local_MessagePassing, \
     BesselBasisLayer, SphericalBasisLayer, MLP
 
 class Config(object):
-    def __init__(self, dataset, dim, n_layer, cutoff_l, cutoff_g, mode, knns:int):
+    def __init__(self, dataset, dim, n_layer, cutoff_l, cutoff_g, mode, knns:int, transformer_blocks:int):
         self.dataset = dataset
         self.dim = dim
         if mode == "backbone":
@@ -22,6 +22,7 @@ class Config(object):
         self.cutoff_l = cutoff_l
         self.cutoff_g = cutoff_g
         self.knns = knns
+        self.transformer_blocks = transformer_blocks
 
 class SinusoidalPositionEmbeddings(nn.Module):
     def __init__(self, dim):
@@ -97,7 +98,7 @@ class PAMNet(nn.Module):
         # self.attn = nn.MultiheadAttention(self.dim + self.time_dim, num_heads=4)
 
         self.sequence_module = SequenceModule(self.seq_emb_dim)
-        self.seq_struct_module = SequenceStructureModule(self.seq_emb_dim + self.dim, n_layers=24, nhead=8)
+        self.seq_struct_module = SequenceStructureModule(self.seq_emb_dim + self.dim, n_layers=config.transformer_blocks, nhead=8)
 
         self.rbf_g = BesselBasisLayer(radial_bessels, self.cutoff_g, envelope_exponent)
         self.rbf_l = BesselBasisLayer(radial_bessels, self.cutoff_l, envelope_exponent)
