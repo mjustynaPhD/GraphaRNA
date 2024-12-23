@@ -40,8 +40,8 @@ def main():
     print('Seed:', args.seed)
     set_seed(args.seed)
     # Load the model
-    exp_name = "exalted-terrain-98"
-    epoch = 1500
+    exp_name = "dashing-totem-102"
+    epoch = 980
     model_path = f"save/{exp_name}/model_{epoch}.h5"
     config = Config(dataset=args.dataset,
                     dim=args.dim,
@@ -60,7 +60,7 @@ def main():
     print("Device: ", device)
     model.to(device)
     # ds = RNAPDBDataset("data/user_inputs/", name='test-pkl', mode='coarse-grain')
-    ds = RNAPDBDataset("data/rna3db/", name='train-pkl', mode='coarse-grain')
+    ds = RNAPDBDataset("data/rna-solo/", name='train-pkl', mode='coarse-grain')
     # ds = RNAPDBDataset("data/RNA-PDB-clean/", name='test-pkl', mode='coarse-grain')
     ds_loader = DataLoader(ds, batch_size=args.batch_size, shuffle=False, pin_memory=True)
     sampler = Sampler(timesteps=args.timesteps)

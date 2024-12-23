@@ -135,7 +135,7 @@ def main(world_size):
     model = PAMNet(config).to(device)
     # load state dict of a pre-trained model
     if args.load:
-        model.load_state_dict(torch.load("save/exalted-terrain-98/model_1590.h5"))
+        model.load_state_dict(torch.load("save/balmy-rain-99/model_50.h5"))
 
     model = DDP(model, device_ids=[rank], find_unused_parameters=True)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
@@ -165,7 +165,7 @@ def main(world_size):
             optimizer.step()
             losses.append(loss_all.item())
             denoise_losses.append(loss_denoise.item())
-            if step % 50 == 0 and step != 0:
+            if step % 5 == 0 and step != 0:
                 val_loss, val_denoise_loss = validation(model, val_loader, device, sampler, args)
                 if args.wandb and rank == 0:
                     print(f'Epoch: {epoch+1}, Step: {step}, Loss: {np.mean(losses):.4f}, Denoise Loss: {np.mean(denoise_losses):.4f}, Val Loss: {val_loss:.4f}, Val Denoise Loss: {val_denoise_loss:.4f} LR: {scheduler.get_last_lr()[0]}')
