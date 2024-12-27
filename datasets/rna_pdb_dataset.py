@@ -56,27 +56,19 @@ class RNAPDBDataset(Dataset):
             c2 = sample['c2']
             c4_or_c6 = sample['c4_or_c6']
             n1_or_n9 = sample['n1_or_n9']
+        elif self.mode == 'p_only':
+            atoms_pos, atoms_types, residues = self.p_only(atoms_pos, atoms_types, sample)
+        else:
+            raise ValueError(f"Invalid mode: {self.mode}")
 
         name = sample['name'].replace('.pkl', '')
-        # convert atom_types to one-hot encoding (C, O, N, P)
-        atoms_types = torch.nn.functional.one_hot(atoms_types.to(torch.int64), num_classes=4).float()
-        atoms_types = atoms_types.squeeze(1)
-        coords_mask = torch.tensor(sample['coords_updated']).bool().unsqueeze(1)
-        c4_primes = torch.tensor(c4_primes).float().unsqueeze(1)
-        if c2 is not None:
-            c2 = torch.tensor(c2).float().unsqueeze(1)
-            c4_or_c6 = torch.tensor(c4_or_c6).float().unsqueeze(1)
-            n1_or_n9 = torch.tensor(n1_or_n9).float().unsqueeze(1)
         residue_names = np.array([REV_RESIDUES[res] for res in residues])
-        n_pos = torch.where(n1_or_n9)[0]
-        residue_names = residue_names[n_pos]
-        
-        residues = torch.nn.functional.one_hot(torch.tensor(residues).to(torch.int64), num_classes=4).float()
+        if self.mode in ['coarse-grain', 'all', 'backbone']:
+            data_x, residue_names = self.get_data_x_cg(atoms_pos, sample, c4_primes, c2, c4_or_c6, n1_or_n9, residue_names, residues, atoms_types)
+        elif self.mode == 'p_only':
+            coords_mask = torch.tensor(sample['coords_updated']).bool().unsqueeze(1)
+            data_x = torch.cat((atoms_pos, atoms_types, residues, coords_mask), dim=1)
 
-        if c2 is not None:
-            data_x = torch.cat((atoms_pos, atoms_types, residues, c4_primes, c2, c4_or_c6, n1_or_n9, coords_mask), dim=1)
-        else:
-            data_x = torch.cat((atoms_pos, atoms_types, residues, c4_primes, coords_mask), dim=1)
         edges = torch.tensor(sample['edges'])
         if len(edges.shape) == 3:
             edges = edges.squeeze(2)
@@ -87,6 +79,30 @@ class RNAPDBDataset(Dataset):
                 torch.nn.functional.one_hot(torch.tensor(sample['edge_type']).to(torch.int64), num_classes=3).float(),\
                 residue_names
 
+    def get_data_x_cg(self, atoms_pos, sample, c4_primes, c2, c4_or_c6, n1_or_n9, residue_names, residues, atoms_types):
+        
+        # convert atom_types to one-hot encoding (C, O, N, P)
+        atoms_types = torch.nn.functional.one_hot(atoms_types.to(torch.int64), num_classes=4).float()
+        atoms_types = atoms_types.squeeze(1)
+        coords_mask = torch.tensor(sample['coords_updated']).bool().unsqueeze(1)
+        c4_primes = torch.tensor(c4_primes).float().unsqueeze(1)
+        if c2 is not None:
+            c2 = torch.tensor(c2).float().unsqueeze(1)
+            c4_or_c6 = torch.tensor(c4_or_c6).float().unsqueeze(1)
+            n1_or_n9 = torch.tensor(n1_or_n9).float().unsqueeze(1)
+        
+        if n1_or_n9 is not None:
+            n_pos = torch.where(n1_or_n9)[0]
+            residue_names = residue_names[n_pos]
+        
+        residues = torch.nn.functional.one_hot(torch.tensor(residues).to(torch.int64), num_classes=4).float()
+
+        if c2 is not None:
+            data_x = torch.cat((atoms_pos, atoms_types, residues, c4_primes, c2, c4_or_c6, n1_or_n9, coords_mask), dim=1)
+        elif c4_primes is not None:
+            data_x = torch.cat((atoms_pos, atoms_types, residues, c4_primes, coords_mask), dim=1)
+        return data_x, residue_names
+
     def backbone_only(self, atom_pos, atom_types, sample):
         mask = [True if atom in BACKBONE_ATOMS else False for atom in sample['symbols']]
         c4_primes = sample['c4_primes']
@@ -95,12 +111,23 @@ class RNAPDBDataset(Dataset):
     
     def coarse_grain(self, atom_pos, atom_types, sample):
         # mask = sample['crs-grain-mask']
-        c4_primes = sample['c4_primes']
-        c2 = sample['c2']
-        c4_or_c6 = sample['c4_or_c6']
-        n1_or_n9 = sample['n1_or_n9']
+        if 'c4_primes' in sample:
+            c4_primes = sample['c4_primes']
+            c2 = sample['c2']
+            c4_or_c6 = sample['c4_or_c6']
+            n1_or_n9 = sample['n1_or_n9']
+        else:
+            c4_primes = None
+            c2 = None
+            c4_or_c6 = None
+            n1_or_n9 = None
         residues = sample['residues']
         return atom_pos, atom_types, c4_primes, residues, c2, c4_or_c6, n1_or_n9
+
+    def p_only(self, atom_pos, atom_types, sample):
+        residues = sample['residues']
+        return atom_pos, atom_types, residues
+
 
     @property
     def raw_file_names(self):

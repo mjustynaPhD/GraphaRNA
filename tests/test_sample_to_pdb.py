@@ -1,11 +1,21 @@
 import pytest
-from torch_geometric.loader import DataLoader
+from torch.utils.data import DataLoader
 from datasets import RNAPDBDataset
 from utils import SampleToPDB
 
 class TestSampleToPDB:
     data_path = "data/7QR4/"
     out_path = "tests/test_output/"
+
+    def test_for_P_only(self):
+        p_data_path = "tests/"
+        val_ds = RNAPDBDataset(p_data_path, name='test_data', mode='p_only')
+        val_loader = DataLoader(val_ds, batch_size=1, shuffle=False)
+        sample = SampleToPDB()
+
+        for data, name, _seq in val_loader:
+            sample.to("pdb", data, self.out_path, name)
+            break
 
     def test_to_pdb(self):
         # Test the to_pdb method
