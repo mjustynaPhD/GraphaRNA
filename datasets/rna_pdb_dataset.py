@@ -18,7 +18,7 @@ class RNAPDBDataset(Dataset):
         self.files = os.listdir(self.path)
         self.files = [f for f in self.files if f.endswith(file_extension)]
         self.to_tensor = torch.tensor
-        if mode not in ['backbone', 'all', 'coarse-grain']:
+        if mode not in ['backbone', 'all', 'coarse-grain', 'p_only']:
             raise ValueError(f"Invalid mode: {mode}")
         self.mode = mode
 
@@ -58,11 +58,11 @@ class RNAPDBDataset(Dataset):
             n1_or_n9 = sample['n1_or_n9']
         elif self.mode == 'p_only':
             atoms_pos, atoms_types, residues = self.p_only(atoms_pos, atoms_types, sample)
-        else:
-            raise ValueError(f"Invalid mode: {self.mode}")
 
         name = sample['name'].replace('.pkl', '')
         residue_names = np.array([REV_RESIDUES[res] for res in residues])
+        residues = torch.nn.functional.one_hot(torch.tensor(residues).to(torch.int64), num_classes=4).float()
+        
         if self.mode in ['coarse-grain', 'all', 'backbone']:
             data_x, residue_names = self.get_data_x_cg(atoms_pos, sample, c4_primes, c2, c4_or_c6, n1_or_n9, residue_names, residues, atoms_types)
         elif self.mode == 'p_only':
@@ -95,7 +95,6 @@ class RNAPDBDataset(Dataset):
             n_pos = torch.where(n1_or_n9)[0]
             residue_names = residue_names[n_pos]
         
-        residues = torch.nn.functional.one_hot(torch.tensor(residues).to(torch.int64), num_classes=4).float()
 
         if c2 is not None:
             data_x = torch.cat((atoms_pos, atoms_types, residues, c4_primes, c2, c4_or_c6, n1_or_n9, coords_mask), dim=1)
