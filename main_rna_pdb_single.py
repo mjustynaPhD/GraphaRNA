@@ -81,6 +81,8 @@ def main():
     parser.add_argument('--lr-step', type=int, default=30, help='Step size for learning rate scheduler')
     parser.add_argument('--lr-gamma', type=float, default=0.9, help='Gamma for learning rate scheduler')
     parser.add_argument('--knns', type=int, default=2, help='Number of knn neighbors')
+    parser.add_argument('--blocks', type=int, default=4, help='Number of transformer blocks in the model')
+    parser.add_argument('--load', action='store_true', help='Path to the model to load')
     args = parser.parse_args()
 
 
@@ -105,11 +107,13 @@ def main():
     # samp_loader = DataLoader(samp_dataset, batch_size=6, shuffle=False)
     print("Data loaded!")
     for data, name, seqs in train_loader:
-        print(data)
-        break
+        if data.edge_index.dtype == torch.float64:
+            print(name)
+    
+    print('end')
 
     sampler = Sampler(timesteps=args.timesteps)
-    config = Config(dataset=args.dataset, dim=args.dim, n_layer=args.n_layer, cutoff_l=args.cutoff_l, cutoff_g=args.cutoff_g, mode=args.mode, knns=args.knns)
+    config = Config(dataset=args.dataset, dim=args.dim, n_layer=args.n_layer, cutoff_l=args.cutoff_l, cutoff_g=args.cutoff_g, mode=args.mode, knns=args.knns, transformer_blocks=args.blocks)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # device = 'cpu'
     model = PAMNet(config).to(device)

@@ -16,8 +16,10 @@ class Config(object):
         self.dim = dim
         if mode == "backbone":
             self.out_dim = 12
-        else:
+        elif mode == "all" or mode == "coarse-grained":
             self.out_dim = 16
+        elif mode == "p_only":
+            self.out_dim = 9
         self.n_layer = n_layer
         self.cutoff_l = cutoff_l
         self.cutoff_g = cutoff_g
@@ -213,7 +215,7 @@ class PAMNet(nn.Module):
 
     
     def merge_seq_embeddings(self, seq_emb, x):
-        seq_emb = seq_emb.repeat_interleave(5, dim=0) # the embeddings are only for N atoms
+        # seq_emb = seq_emb.repeat_interleave(5, dim=0) # the embeddings are only for N atoms
         p = torch.argmax(x[:, :4], dim=1)
         p_pos = torch.where(p==3)[0] # Find P atoms
         # find places where difference between p_pos is different than 5
@@ -255,7 +257,7 @@ class PAMNet(nn.Module):
         
         # edge_index_g = self.get_non_redundant_edges(edge_index_g)
         edge_g_attr = self.merge_edge_attr(data, (edge_index_g.size(1),3))
-        edge_index_g = torch.cat((edge_index_g, data.edge_index), dim=1)
+        edge_index_g = torch.cat((edge_index_g, data.edge_index.type(torch.int64)), dim=1)
         edge_index_g, edge_g_attr, dist_g = self.get_edge_info(edge_index_g, edge_attr=edge_g_attr, pos=pos)
 
 
@@ -266,7 +268,7 @@ class PAMNet(nn.Module):
         
         # edge_index_l = self.get_non_redundant_edges(edge_index_l)
         edge_l_attr = self.merge_edge_attr(data, (edge_index_l.size(1),3))
-        edge_index_l = torch.cat((edge_index_l, data.edge_index), dim=1)
+        edge_index_l = torch.cat((edge_index_l, data.edge_index.type(torch.int64)), dim=1)
         edge_index_l, edge_l_attr, dist_l = self.get_edge_info(edge_index_l, edge_attr=edge_l_attr, pos=pos)
         
         idx_i, idx_j, idx_k, idx_kj, idx_ji, idx_i_pair, idx_j1_pair, idx_j2_pair, idx_jj_pair, idx_ji_pair = self.indices(edge_index_l, num_nodes=x.size(0))

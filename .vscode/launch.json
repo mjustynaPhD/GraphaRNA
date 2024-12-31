@@ -12,15 +12,15 @@
             "console": "integratedTerminal",
             "args": [
                 "--dataset",
-                "rna3db",
+                "full_PDB-P",
                 "--epochs=5",
-                "--batch_size=2",
+                "--batch_size=4",
                 "--dim=64",
                 "--n_layer=2",
-                "--lr=1e-3",
+                "--lr=1e-4",
                 "--timesteps=500",
                 "--mode",
-                "coarse-grain",
+                "p_only",
                 "--knn=2"
             ]
         },

@@ -145,9 +145,10 @@ def main(world_size):
     torch.autograd.set_detect_anomaly(True)
     
     dist.barrier()
+    step = 0
     for epoch in range(args.epochs):
         model.train()
-        step = 0
+        
         losses = []
         denoise_losses = []
         for data, name, seqs in train_loader:
