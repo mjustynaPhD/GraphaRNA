@@ -16,7 +16,7 @@ import wandb
 
 from models import PAMNet, Config
 from datasets import RNAPDBDataset
-from utils import Sampler, SampleToPDB
+from utils import Sampler, SampleToPDB, SamplingMask
 from losses import p_losses
 
 def set_seed(seed):
@@ -46,15 +46,18 @@ def validation(model, loader, device, sampler, args):
     model.train()
     return np.mean(losses), np.mean(denoise_losses)
 
-def sample(model, loader, device, sampler, epoch, num_batches=None, exp_name: str = "run"):
+def sample(model, loader, device, sampler, epoch, args, num_batches=None, exp_name: str = "run", ):
     model.eval()
     s = SampleToPDB()
+    mask_sampler = SamplingMask(args.sampling_resids, device=device)
     s_counter = 0
+
     with torch.no_grad():
         for data, name, seqs in loader:
             print(f"Sample batch {s_counter}")
             data = data.to(device)
-            samples = sampler.sample(model, seqs, data)[-1]
+            sampling_mask = mask_sampler.get_mask(data, name)
+            samples = sampler.sample(model, seqs, data, mask=sampling_mask)[-1]
             s.to('pdb', samples, f"./samples/{exp_name}/{epoch}", name)
             # s.to('xyz', samples, f"./samples/{exp_name}/{epoch}", name)
             # s.to('trafl', samples, f"./samples/{exp_name}/{epoch}", name)
@@ -135,7 +138,7 @@ def main(world_size):
     model = PAMNet(config).to(device)
     # load state dict of a pre-trained model
     if args.load:
-        model.load_state_dict(torch.load("save/balmy-rain-99/model_50.h5"))
+        model.load_state_dict(torch.load("save/twilight-shadow-129/model_200.h5"))
 
     model = DDP(model, device_ids=[rank], find_unused_parameters=True)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)

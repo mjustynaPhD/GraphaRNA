@@ -35,13 +35,15 @@ def main():
     parser.add_argument('--mode', type=str, default='coarse-grain', help='Mode of the dataset')
     parser.add_argument('--knns', type=int, default=5, help='Number of knns')
     parser.add_argument('--blocks', type=int, default=4, help='Number of transformer blocks')
+    parser.add_argument('--sampling-resids', type=str, default=None, help='Residues that will be sampled, while the rest of the structure will remain fixed')
+    # parser.add_argument('--fixed-ps', action='store_true', help='If True, P atoms will be fixed and the rest of the structure will be generated. Otherwise, the whole structure will be generated')
     args = parser.parse_args()
 
     print('Seed:', args.seed)
     set_seed(args.seed)
     # Load the model
-    exp_name = "dashing-totem-102"
-    epoch = 980
+    exp_name = "twilight-shadow-129"
+    epoch = 1900
     model_path = f"save/{exp_name}/model_{epoch}.h5"
     config = Config(dataset=args.dataset,
                     dim=args.dim,
@@ -59,13 +61,16 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print("Device: ", device)
     model.to(device)
+    dataset = 'my-tests' # 'test-pkl' #'my-tests'
+    dataset = 'debug'
     # ds = RNAPDBDataset("data/user_inputs/", name='test-pkl', mode='coarse-grain')
-    ds = RNAPDBDataset("data/rna-solo/", name='train-pkl', mode='coarse-grain')
+    # ds = RNAPDBDataset("data/rna3db-300/", name=dataset, mode='coarse-grain')
+    ds = RNAPDBDataset("data/full_PDB/", name=dataset, mode='coarse-grain')
     # ds = RNAPDBDataset("data/RNA-PDB-clean/", name='test-pkl', mode='coarse-grain')
     ds_loader = DataLoader(ds, batch_size=args.batch_size, shuffle=False, pin_memory=True)
     sampler = Sampler(timesteps=args.timesteps)
     print("Sampling...")
-    sample(model, ds_loader, device, sampler, epoch, num_batches=None, exp_name=f"{exp_name}-rna3db-seed={args.seed}")
+    sample(model, ds_loader, device, sampler, epoch, args, num_batches=None, exp_name=f"{exp_name}-{dataset}-seed={args.seed}")
     print(f"Results stored in path: samples/{exp_name}")
 
 if __name__ == "__main__":
