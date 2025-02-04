@@ -388,7 +388,7 @@ def main():
     seq_dir = None
     pdbs_dir = os.path.join(data_dir, "motifs")
     save_dir = os.path.join(".", "data", "full_PDB")
-    construct_graphs(seq_dir, pdbs_dir, save_dir, "motifs", file_3d_type='.cif', extended_dotbracket=extended_dotbracket, sampling=False)
+    construct_graphs(seq_dir, pdbs_dir, save_dir, "motifs", file_3d_type='.pdb', extended_dotbracket=extended_dotbracket, sampling=False)
     
     # data_dir = "/home/mjustyna/data/"
     # seq_dir = os.path.join(data_dir, "sim_desc")
