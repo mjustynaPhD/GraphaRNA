@@ -42,8 +42,8 @@ def main():
     print('Seed:', args.seed)
     set_seed(args.seed)
     # Load the model
-    exp_name = "twilight-shadow-129"
-    epoch = 1900
+    exp_name = "glowing-terrain-25"
+    epoch = 800
     model_path = f"save/{exp_name}/model_{epoch}.h5"
     config = Config(dataset=args.dataset,
                     dim=args.dim,
@@ -62,7 +62,7 @@ def main():
     print("Device: ", device)
     model.to(device)
     dataset = 'my-tests' # 'test-pkl' #'my-tests'
-    dataset = 'debug'
+    dataset = 'motifs'
     # ds = RNAPDBDataset("data/user_inputs/", name='test-pkl', mode='coarse-grain')
     # ds = RNAPDBDataset("data/rna3db-300/", name=dataset, mode='coarse-grain')
     ds = RNAPDBDataset("data/full_PDB/", name=dataset, mode='coarse-grain')

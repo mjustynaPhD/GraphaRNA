@@ -143,6 +143,7 @@ class Sampler():
                                         atoms_mask,
                                         fixed=fixed,
                                         x_start=context_mol_coords_copy)
+            assert torch.all(torch.isfinite(context_mols.x))
             # denoised.append(context_mols.clone().cpu())
         denoised.append(context_mols.clone().cpu())
         return denoised

@@ -42,6 +42,9 @@ class SamplingMask():
         mask = mask.to(self.device)
         for index in indices:
             mask = self.create_mask(data, index, mask, names[index])
+        if not indices: # if not in file, or no file given
+            mask = torch.ones(data.x.shape[0], dtype=torch.bool) # all residuses are predicted.
+            mask = mask.to(self.device)
         return mask
 
     def create_mask(self, data, index, mask, name):

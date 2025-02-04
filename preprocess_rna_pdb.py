@@ -1,3 +1,6 @@
+from constants import RESIDUES, ATOM_TYPES, RESIDUE_CONNECTION_GRAPH,\
+    DOT_OPENINGS, DOT_CLOSINGS_MAP, KEEP_ELEMENTS, COARSE_GRAIN_MAP, ATOM_ELEMENTS
+
 import os
 import numpy as np
 from tqdm import tqdm
@@ -11,8 +14,7 @@ from rnapolis.parser import read_3d_structure
 import warnings
 from Bio import BiopythonWarning
 warnings.simplefilter('ignore', BiopythonWarning)
-from constants import RESIDUES, ATOM_TYPES, RESIDUE_CONNECTION_GRAPH,\
-    DOT_OPENINGS, DOT_CLOSINGS_MAP, KEEP_ELEMENTS, COARSE_GRAIN_MAP, ATOM_ELEMENTS
+
 
 def load_molecule(molecule_file):
     if ".mol2" in molecule_file:
@@ -297,7 +299,12 @@ def construct_graphs(seq_dir, pdbs_dir, save_dir, save_name, file_3d_type:str=".
             continue
         
 
-        res_pairs, seq_segments = get_bpseq_pairs(rna_file, seq_path=seq_path, extended_dotbracket=extended_dotbracket)
+        try:
+            res_pairs, seq_segments = get_bpseq_pairs(rna_file, seq_path=seq_path, extended_dotbracket=extended_dotbracket)
+        except IndexError:
+            print("Error reading dotbracket", rna_file)
+            continue
+
         if not seq_segments:
             print("Error reading sequence", rna_file)
             continue
@@ -367,7 +374,6 @@ def construct_graphs(seq_dir, pdbs_dir, save_dir, save_name, file_3d_type:str=".
 
 def main():
     extended_dotbracket = False
-    data_dir = "/home/mjustyna/data/"
     # seq_dir = os.path.join(data_dir, "hl_seqs")
     # pdbs_dir = os.path.join(data_dir, "hl_pdbs")
     # save_dir = os.path.join(".", "data", "RNA-bgsu-hl-cn")
@@ -378,11 +384,11 @@ def main():
     # seq_dir = os.path.join(data_dir, "seqs")
     # pdbs_dir = os.path.join(data_dir, "pdbs")
 
-    data_dir = "/home/mjustyna/data//"
+    data_dir = "/home/mjustyna/RNA-GNN/"
     seq_dir = None
-    pdbs_dir = os.path.join(data_dir, "rna-solo")
-    save_dir = os.path.join(".", "data", "rna-solo")
-    construct_graphs(seq_dir, pdbs_dir, save_dir, "train-pkl", file_3d_type='.pdb', extended_dotbracket=extended_dotbracket, sampling=False)
+    pdbs_dir = os.path.join(data_dir, "motifs")
+    save_dir = os.path.join(".", "data", "full_PDB")
+    construct_graphs(seq_dir, pdbs_dir, save_dir, "motifs", file_3d_type='.cif', extended_dotbracket=extended_dotbracket, sampling=False)
     
     # data_dir = "/home/mjustyna/data/"
     # seq_dir = os.path.join(data_dir, "sim_desc")

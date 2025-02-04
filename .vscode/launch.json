@@ -45,8 +45,8 @@
                 "--dim=256",
                 "--n_layer=4",
                 "--timesteps=1000",
-                "--knns=5",
-                "--sampling-resids=tests/sampling_masks.txt"
+                "--knns=1",
+                "--sampling-resids=sampling_masks.txt"
             ]
         },
         {
