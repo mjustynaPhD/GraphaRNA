@@ -81,7 +81,7 @@ def superimpose_pdbs(trafl_path, targets_path, out_postfix='-000001_AA.pdb', met
     outs = []
     for pdb in tqdm(pdbs):
         base_name = pdb.replace(out_postfix, '')
-        pdb_name = base_name + '.cif' if not base_name.endswith('.pdb') else base_name
+        pdb_name = base_name + '.pdb' if not base_name.endswith('.pdb') else base_name
         if os.path.exists(f"{targets_path}/{pdb_name}"):
             ref_2d_structure = extract_2d_structure(f"{targets_path}/{pdb_name}")
             pred_2d_structure = extract_2d_structure(f"{trafl_path}/{pdb}")

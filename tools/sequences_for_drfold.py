@@ -4,8 +4,8 @@ from rnapolis.parser import read_3d_structure
 
 from tqdm import tqdm
 
-test_cifs_path = "/home/mjustyna/data/rna3db-mmcifs/test-300/"
-drfold_seq_path = "/home/mjustyna/software/DRfold/validation"
+test_cifs_path = "/home/mjustyna/RNA-GNN/tools/fastas"
+drfold_seq_path = "/home/mjustyna/software/DRfold/desc_seqs"
 
 cifs = os.listdir(test_cifs_path)
 for cif in tqdm(cifs):

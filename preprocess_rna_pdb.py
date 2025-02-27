@@ -384,11 +384,11 @@ def main():
     # seq_dir = os.path.join(data_dir, "seqs")
     # pdbs_dir = os.path.join(data_dir, "pdbs")
 
-    data_dir = "/home/mjustyna/RNA-GNN/"
+    data_dir = "/home/mjustyna/data/eval_examples/"
     seq_dir = None
-    pdbs_dir = os.path.join(data_dir, "motifs")
-    save_dir = os.path.join(".", "data", "full_PDB")
-    construct_graphs(seq_dir, pdbs_dir, save_dir, "motifs", file_3d_type='.pdb', extended_dotbracket=extended_dotbracket, sampling=False)
+    pdbs_dir = os.path.join(data_dir, "5_segment")
+    save_dir = os.path.join(".", "data", "eval-pdb")
+    construct_graphs(seq_dir, pdbs_dir, save_dir, "5_segment", file_3d_type='.pdb', extended_dotbracket=extended_dotbracket, sampling=False)
     
     # data_dir = "/home/mjustyna/data/"
     # seq_dir = os.path.join(data_dir, "sim_desc")

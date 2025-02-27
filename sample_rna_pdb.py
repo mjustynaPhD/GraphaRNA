@@ -42,8 +42,8 @@ def main():
     print('Seed:', args.seed)
     set_seed(args.seed)
     # Load the model
-    exp_name = "glowing-terrain-25"
-    epoch = 800
+    exp_name = "twilight-shadow-129"
+    epoch = 900
     model_path = f"save/{exp_name}/model_{epoch}.h5"
     config = Config(dataset=args.dataset,
                     dim=args.dim,
