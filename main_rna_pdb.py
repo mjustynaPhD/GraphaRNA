@@ -99,7 +99,7 @@ def main(world_size):
 
     if args.wandb and rank == 0:
         wandb.login()
-        run = wandb.init(project='RNA-GNN-Full-RNAs', config=args)
+        run = wandb.init(project='RNA-Equivariant-Flows', config=args)
         exp_name = run.name
     else:
         exp_name = "test"
@@ -138,7 +138,7 @@ def main(world_size):
     model = PAMNet(config).to(device)
     # load state dict of a pre-trained model
     if args.load:
-        model.load_state_dict(torch.load("save/twilight-shadow-129/model_200.h5"))
+        model.load_state_dict(torch.load("save/golden-frost-20/model_150.h5"))
 
     model = DDP(model, device_ids=[rank], find_unused_parameters=True)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
@@ -158,32 +158,55 @@ def main(world_size):
             data = data.to(device)
             optimizer.zero_grad()
 
-            t = torch.randint(0, args.timesteps, (args.batch_size,), device=device).long() # Generate random timesteps
-            graphs_t = t[data.batch]
-            
-            loss_all, loss_denoise = p_losses(model, data, seqs, graphs_t, sampler=sampler, loss_type="huber", mask=mask)
+            # t = torch.randint(0, args.timesteps, (args.batch_size,), device=device).long() # Generate random timesteps
 
-            loss_all.backward()
+            x0 = torch.randn(data.x.shape[0], 3)  # Noise
+            x0 = x0.to(device)
+            x1 = data.x[:, :3]  # True RNA coords
+            t = torch.rand(args.batch_size, 1)
+            t = t.to(device)
+            graphs_t = t[data.batch]
+
+            # Linear interpolation
+            x_t = (1 - graphs_t) * x0 + graphs_t * x1
+            target_v = x1 - x0  # Target velocity
+            
+            
+            data.x[:, :3] = x_t
+            pred_v = model(data, seqs, graphs_t)
+            pred_v = pred_v[:, :3]
+
+            # Predict velocity
+            # pred_v = model(t, x_t, graph)
+            
+            loss = ((pred_v - target_v) ** 2).sum(dim=-1).mean()
+
+            # loss_all, loss_denoise = p_losses(model, data, seqs, graphs_t, sampler=sampler, loss_type="huber", mask=mask)
+
+            loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0) # prevent exploding gradients
             optimizer.step()
-            losses.append(loss_all.item())
-            denoise_losses.append(loss_denoise.item())
-            if step % 5 == 0 and step != 0:
-                val_loss, val_denoise_loss = validation(model, val_loader, device, sampler, args)
-                if args.wandb and rank == 0:
-                    print(f'Epoch: {epoch+1}, Step: {step}, Loss: {np.mean(losses):.4f}, Denoise Loss: {np.mean(denoise_losses):.4f}, Val Loss: {val_loss:.4f}, Val Denoise Loss: {val_denoise_loss:.4f} LR: {scheduler.get_last_lr()[0]}')
-                    wandb.log({'Train Loss': np.mean(losses), 'Val Loss': val_loss, 'Denoise Loss': np.mean(denoise_losses), 'Val Denoise Loss': val_denoise_loss, "LR": scheduler.get_last_lr()[0]})
-                losses = []
-                denoise_losses = []
-            elif not args.wandb and rank == 0:
-                print(f"Epoch: {epoch}, step: {step}, loss: {loss_all.item():.4f} ")
+            losses.append(loss.item())
+            if rank == 0 and step%20 == 0:
+                print(f"Epoch: {epoch}, step: {step}, loss: {loss.item():.4f} ")
+                wandb.log({'Train Loss': loss.item()})
+            # denoise_losses.append(loss_denoise.item())
+            # if step % 5 == 0 and step != 0:
+            #     val_loss, val_denoise_loss = validation(model, val_loader, device, sampler, args)
+            #     if args.wandb and rank == 0:
+            #         print(f'Epoch: {epoch+1}, Step: {step}, Loss: {np.mean(losses):.4f}, Denoise Loss: {np.mean(denoise_losses):.4f}, Val Loss: {val_loss:.4f}, Val Denoise Loss: {val_denoise_loss:.4f} LR: {scheduler.get_last_lr()[0]}')
+            #         wandb.log({'Train Loss': np.mean(losses), 'Val Loss': val_loss, 'Denoise Loss': np.mean(denoise_losses), 'Val Denoise Loss': val_denoise_loss, "LR": scheduler.get_last_lr()[0]})
+            #     losses = []
+            #     denoise_losses = []
+            # elif not args.wandb and rank == 0:
+            #     print(f"Epoch: {epoch}, step: {step}, loss: {loss_all.item():.4f} ")
             step += 1
         scheduler.step()
         
-        if args.wandb and rank == 0 and losses:
-            wandb.log({'Train Loss': np.mean(losses), 'Val Loss': val_loss, 'Denoise Loss': np.mean(denoise_losses), 'Val Denoise Loss': val_denoise_loss, "LR": scheduler.get_last_lr()[0]})
+        # if args.wandb and rank == 0 and losses:
+        #     wandb.log({'Train Loss': np.mean(losses), 'Val Loss': val_loss, 'Denoise Loss': np.mean(denoise_losses), 'Val Denoise Loss': val_denoise_loss, "LR": scheduler.get_last_lr()[0]})
         if rank == 0:
-            print(f'Epoch: {epoch+1}, Loss: {np.mean(losses):.4f}, Denoise Loss: {np.mean(denoise_losses):.4f}, Val Loss: {val_loss:.4f}, Val Denoise Loss: {val_denoise_loss:.4f}, LR: {scheduler.get_last_lr()[0]}')
+            print(f'Epoch: {epoch+1}, Loss: {np.mean(losses):.4f}')#, Denoise Loss: {np.mean(denoise_losses):.4f}, Val Loss: {val_loss:.4f}, Val Denoise Loss: {val_denoise_loss:.4f}, LR: {scheduler.get_last_lr()[0]}')
         
 
         

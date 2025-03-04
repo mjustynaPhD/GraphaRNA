@@ -32,10 +32,12 @@ class SinusoidalPositionEmbeddings(nn.Module):
     def forward(self, time):
         device = time.device
         half_dim = self.dim // 2
-        embeddings = math.log(10000) / (half_dim - 1)
+        embeddings = math.log(100) / (half_dim - 1)
         embeddings = torch.exp(torch.arange(half_dim, device=device) * -embeddings)
         embeddings = time[:, None] * embeddings[None, :]
         embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1)
+        if embeddings.shape != (time.size(0), self.dim):
+            embeddings = embeddings.reshape(time.size(0), self.dim)
         return embeddings
     
 class SequenceModule(nn.Module):

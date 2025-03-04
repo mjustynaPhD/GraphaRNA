@@ -73,11 +73,11 @@
                 // "--preds-path=/home/mjustyna/RNA-GNN/samples/af3_preds/ours/",
                 // "--templates-path=/home/mjustyna/data/motifs/il_pdbs",
                 // "--targets-path=/home/mjustyna/RNA-GNN/samples/af3_preds/targets/",
-                "--preds-path=/home/mjustyna/RNA-GNN/samples/RhoFold/1_segment/",
+                "--preds-path=/home/mjustyna/RNA-GNN/samples/glowing-terrain-25-3_segment/800/",
                 // "--preds-path=/home/mjustyna/RNA-GNN/samples/DRfold/1/",
                 // "--templates-path=/home/mjustyna/data/eval_examples_pdb/clean/",
                 "--targets-path=/home/mjustyna/data/desc-pdbs/",
-                // "--arena_path=/home/mjustyna/software/Arena/"
+                "--arena_path=/home/mjustyna/software/Arena/"
                 // "--templates-path=/home/mjustyna/data/motifs/j3_pdbs/",
                 // "--targets-path=/home/mjustyna/data/motifs/j3_pdbs/",
                 // "--templates-path=/home/mjustyna/RNA-GNN/user_inputs/pdbs/",
