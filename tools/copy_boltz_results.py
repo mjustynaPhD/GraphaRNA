@@ -2,8 +2,8 @@ import os
 # import bio to read cif structure and save it as pdb
 from Bio.PDB import MMCIFParser, PDBIO
 
-preds = "/home/mjustyna/boltz/5_segment"
-out_path = "/home/mjustyna/RNA-GNN/samples/boltz/5_segment"
+preds = "/home/mjustyna/boltz/4_segment"
+out_path = "/home/mjustyna/RNA-GNN/samples/boltz/4_segment"
 
 os.makedirs(out_path, exist_ok=True)
 for pdb_pred in os.listdir(preds):
