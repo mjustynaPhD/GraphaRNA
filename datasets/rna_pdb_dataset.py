@@ -44,7 +44,7 @@ class RNAPDBDataset(Dataset):
         atoms_pos = self.to_tensor(sample['pos']).float()
         atoms_pos_mean = atoms_pos[sample['coords_updated']].mean(dim=0)
         atoms_pos[sample['coords_updated']] -= atoms_pos_mean # Center around point (0,0,0)
-        atoms_pos /= 10
+        atoms_pos /= 100
         c2 = c4_or_c6 = n1_or_n9 = None
         if self.mode == 'backbone':
             atoms_pos, atoms_types, c4_primes, residues = self.backbone_only(atoms_pos, atoms_types, sample)
