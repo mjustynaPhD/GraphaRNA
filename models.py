@@ -10,20 +10,19 @@ from rinalmo.pretrained import get_pretrained_model
 from layers import Global_MessagePassing, Local_MessagePassing, \
     BesselBasisLayer, SphericalBasisLayer, MLP
 
-from constants import REV_RESIDUES
-
 class Config(object):
-    def __init__(self, dataset, dim, n_layer, cutoff_l, cutoff_g, mode, knns:int):
+    def __init__(self, dataset, dim, n_layer, cutoff_l, cutoff_g, mode, knns:int, transformer_blocks:int):
         self.dataset = dataset
         self.dim = dim
         if mode == "backbone":
             self.out_dim = 12
         else:
-            self.out_dim = 15
+            self.out_dim = 16
         self.n_layer = n_layer
         self.cutoff_l = cutoff_l
         self.cutoff_g = cutoff_g
         self.knns = knns
+        self.transformer_blocks = transformer_blocks
 
 class SinusoidalPositionEmbeddings(nn.Module):
     def __init__(self, dim):
@@ -43,14 +42,11 @@ class SequenceModule(nn.Module):
     def __init__(self, dim):
         super(SequenceModule, self).__init__()
         self.rinalmo, self.alphabet = get_pretrained_model(model_name="giga-v1")
-        self.out_embedding = nn.Linear(1280, dim, bias=False)
+        self.out_embedding = nn.Linear(1280, dim)
         self.emb_act = nn.ReLU()
 
     def forward(self, seqs, device):
         # RiNALMo - RiboNucleic Acid Language Model
-        # Future TODO:
-        # Combine the embeddings with 3D structure coordinates in attention blocks
-        # tokens: 0- begin, 1 - pad, 2 - end
         self.rinalmo.eval()
         tokens = torch.tensor(self.alphabet.batch_tokenize(seqs), dtype=torch.int64, device=device)
         flat_tokens = tokens.flatten()
@@ -79,7 +75,7 @@ class SequenceStructureModule(nn.Module):
         return out
 
 class PAMNet(nn.Module):
-    def __init__(self, config: Config, num_spherical=7, num_radial=6, envelope_exponent=5, time_dim=16):
+    def __init__(self, config: Config, num_spherical=3, num_radial=6, envelope_exponent=2, time_dim=16):
         super(PAMNet, self).__init__()
 
         self.dataset = config.dataset
@@ -98,11 +94,11 @@ class PAMNet(nn.Module):
         self.total_dim = self.dim + self.atom_dim + self.seq_emb_dim + self.time_dim
         self.init_linear = MLP([3, self.dim])
         # self.atom_properties = nn.Linear(self.atom_dim, self.dim//2, bias=False)
-        radial_bessels = 16
+        radial_bessels = 5
         # self.attn = nn.MultiheadAttention(self.dim + self.time_dim, num_heads=4)
 
         self.sequence_module = SequenceModule(self.seq_emb_dim)
-        self.seq_struct_module = SequenceStructureModule(self.seq_emb_dim + self.dim, n_layers=6, nhead=8)
+        self.seq_struct_module = SequenceStructureModule(self.seq_emb_dim + self.dim, n_layers=config.transformer_blocks, nhead=8)
 
         self.rbf_g = BesselBasisLayer(radial_bessels, self.cutoff_g, envelope_exponent)
         self.rbf_l = BesselBasisLayer(radial_bessels, self.cutoff_l, envelope_exponent)
@@ -132,8 +128,6 @@ class PAMNet(nn.Module):
         # self.out_linear = nn.Linear(2*config.out_dim+self.time_dim, config.out_dim)
         self.struct_emb = nn.Linear(2*self.total_dim, config.dim)
         self.out_linear = nn.Linear(self.seq_emb_dim + self.dim + self.total_dim, config.out_dim)
-
-        self.softmax = nn.Softmax(dim=-1)
 
     def get_edge_info(self, edge_index, edge_attr, pos):
         edge_index, edge_attr = remove_self_loops(edge_index, edge_attr)
@@ -326,7 +320,7 @@ class PAMNet(nn.Module):
         att_score = torch.cat((torch.cat(att_score_global, 0), torch.cat(att_score_local, 0)), -1)
         # att_score = torch.cat(att_score_local, 0)
         att_score = F.leaky_relu(att_score, 0.2)
-        att_weight = self.softmax(att_score)
+        att_weight = torch.logsumexp(att_score, dim=-1, keepdim=True)
 
         out = torch.cat((torch.cat(out_global, 0), torch.cat(out_local, 0)), -1)
         # out = torch.cat(out_local, 0)

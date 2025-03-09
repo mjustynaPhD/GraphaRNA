@@ -64,7 +64,7 @@ def extract_2d_structure(pdb_path):
         return structure2d.dotBracket.split('\n')[-1]
 
 def get_inf(s_pred, s_gt):
-    assert len(s_pred) == len(s_gt), ValueError(f"Length of the predicted and ground truth sequences should be the same")
+    assert len(s_pred) == len(s_gt), ValueError("Length of the predicted and ground truth sequences should be the same")
     s_pred = [1 if c != '.' else 0 for c in s_pred]
     s_gt = [1 if c != '.' else 0 for c in s_gt]
     tp = sum([1 for i in range(len(s_pred)) if s_pred[i] == 1 and s_gt[i] == 1])
@@ -85,7 +85,7 @@ def superimpose_pdbs(trafl_path, targets_path, out_postfix='-000001_AA.pdb', met
         if os.path.exists(f"{targets_path}/{pdb_name}"):
             ref_2d_structure = extract_2d_structure(f"{targets_path}/{pdb_name}")
             pred_2d_structure = extract_2d_structure(f"{trafl_path}/{pdb}")
-            
+
             try:
                 inf = get_inf(pred_2d_structure, ref_2d_structure)
             except:

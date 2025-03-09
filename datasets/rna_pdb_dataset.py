@@ -42,9 +42,9 @@ class RNAPDBDataset(Dataset):
         sample = self.load_pickle(path)
         atoms_types = self.to_tensor(sample['atoms']).unsqueeze(1).float()
         atoms_pos = self.to_tensor(sample['pos']).float()
-        atoms_pos_mean = atoms_pos.mean(dim=0)
-        atoms_pos -= atoms_pos_mean # Center around point (0,0,0)
-        atoms_pos /= 10
+        atoms_pos_mean = atoms_pos[sample['coords_updated']].mean(dim=0)
+        atoms_pos[sample['coords_updated']] -= atoms_pos_mean # Center around point (0,0,0)
+        # atoms_pos /= 10
         c2 = c4_or_c6 = n1_or_n9 = None
         if self.mode == 'backbone':
             atoms_pos, atoms_types, c4_primes, residues = self.backbone_only(atoms_pos, atoms_types, sample)
@@ -61,7 +61,7 @@ class RNAPDBDataset(Dataset):
         # convert atom_types to one-hot encoding (C, O, N, P)
         atoms_types = torch.nn.functional.one_hot(atoms_types.to(torch.int64), num_classes=4).float()
         atoms_types = atoms_types.squeeze(1)
-
+        coords_mask = torch.tensor(sample['coords_updated']).bool().unsqueeze(1)
         c4_primes = torch.tensor(c4_primes).float().unsqueeze(1)
         if c2 is not None:
             c2 = torch.tensor(c2).float().unsqueeze(1)
@@ -74,13 +74,18 @@ class RNAPDBDataset(Dataset):
         residues = torch.nn.functional.one_hot(torch.tensor(residues).to(torch.int64), num_classes=4).float()
 
         if c2 is not None:
-            data_x = torch.cat((atoms_pos, atoms_types, residues, c4_primes, c2, c4_or_c6, n1_or_n9), dim=1)
+            data_x = torch.cat((atoms_pos, atoms_types, residues, c4_primes, c2, c4_or_c6, n1_or_n9, coords_mask), dim=1)
         else:
-            data_x = torch.cat((atoms_pos, atoms_types, residues, c4_primes), dim=1)
+            data_x = torch.cat((atoms_pos, atoms_types, residues, c4_primes, coords_mask), dim=1)
         edges = torch.tensor(sample['edges'])
         if len(edges.shape) == 3:
             edges = edges.squeeze(2)
-        return data_x, edges, name, torch.nn.functional.one_hot(torch.tensor(sample['edge_type']).to(torch.int64), num_classes=3).float(), residue_names
+        
+        return data_x,\
+                edges,\
+                name,\
+                torch.nn.functional.one_hot(torch.tensor(sample['edge_type']).to(torch.int64), num_classes=3).float(),\
+                residue_names
 
     def backbone_only(self, atom_pos, atom_types, sample):
         mask = [True if atom in BACKBONE_ATOMS else False for atom in sample['symbols']]
