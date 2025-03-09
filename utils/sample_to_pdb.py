@@ -100,6 +100,7 @@ class SampleToPDB():
         pass
 
     def write_pdb(self, x, path, name):
+        name = name.replace(".pdb", "").replace(".cif", "")
         atoms = self.get_atoms_pos_and_types(x)
     
         structure = self.create_structure(atoms, name)

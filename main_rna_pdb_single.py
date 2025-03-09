@@ -81,6 +81,7 @@ def main():
     parser.add_argument('--lr-step', type=int, default=30, help='Step size for learning rate scheduler')
     parser.add_argument('--lr-gamma', type=float, default=0.9, help='Gamma for learning rate scheduler')
     parser.add_argument('--knns', type=int, default=2, help='Number of knn neighbors')
+    parser.add_argument('--blocks', type=int, default=4, help='Number of transformer blocks in the model')
     args = parser.parse_args()
 
 
@@ -109,7 +110,7 @@ def main():
         break
 
     sampler = Sampler(timesteps=args.timesteps)
-    config = Config(dataset=args.dataset, dim=args.dim, n_layer=args.n_layer, cutoff_l=args.cutoff_l, cutoff_g=args.cutoff_g, mode=args.mode, knns=args.knns)
+    config = Config(dataset=args.dataset, dim=args.dim, n_layer=args.n_layer, cutoff_l=args.cutoff_l, cutoff_g=args.cutoff_g, mode=args.mode, knns=args.knns, transformer_blocks=args.blocks)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # device = 'cpu'
     model = PAMNet(config).to(device)
