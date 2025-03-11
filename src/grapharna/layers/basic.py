@@ -5,7 +5,7 @@ from torch.nn import ReLU
 
 import sympy as sym
 
-from utils import bessel_basis, real_sph_harm
+from grapharna.utils import bessel_basis, real_sph_harm
 
 
 class SiLU(nn.Module):

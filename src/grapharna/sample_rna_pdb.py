@@ -1,14 +1,17 @@
 import argparse
 import torch
 from torch_geometric.loader import DataLoader
-from models import PAMNet, Config
-from datasets import RNAPDBDataset
-from utils import Sampler
-from main_rna_pdb import sample
-
 from torch_geometric import seed_everything
 import random
 import numpy as np
+
+
+from grapharna.datasets import RNAPDBDataset
+from grapharna.utils import Sampler
+from grapharna.main_rna_pdb import sample
+from grapharna.models import PAMNet, Config
+
+
 
 def set_seed(seed):
     torch.manual_seed(seed)

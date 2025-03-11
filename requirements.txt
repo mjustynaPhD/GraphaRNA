@@ -1,6 +1,1 @@
-numpy
-scikit-learn
-scipy
-sympy
-rdkit-pypi
-# git+https://github.com/ildoonet/pytorch-gradual-warmup-lr.git
+flash-attn>=2.3.2

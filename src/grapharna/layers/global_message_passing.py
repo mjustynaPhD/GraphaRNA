@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch_geometric.nn import MessagePassing
 from torch_geometric.nn.inits import glorot
 
-from layers import MLP, Res
+from grapharna.layers import MLP, Res
 
 
 class Global_MessagePassing(MessagePassing):
