@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]  # Ensure a recent version of setuptools
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "GraphaRNA"
+version = "0.1.0"
+description = "Graph Neural Network and Diffusion Model for Modeling RNA Interatomic Interactions"
+authors = [{name = "Marek Justyna", email = "mjustyna@cs.put.poznan.pl"}]
+dependencies = [
+    "torch>=2.3.0",
+    "torch-geometric>=2.5.3",
+    "numpy>=1.26.0",
+    "scikit-learn>=1.4.0",
+    "pandas",
+    "scipy",
+    "biopython>=1.83",
+    "wandb",
+    "torch-sparse>=0.6.18",
+    "torch-scatter>=2.1.2",
+    "torch-cluster>=1.6.3",
+]
+requires-python = ">=3.10"
+
+[project.scripts]
+grapharna = "grapharna.sample_rna_pdb:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}  # Tells setuptools where to find packages
+packages = {find = {where = ["src"]}}  # Auto-discover packages in src/

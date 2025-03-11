@@ -26,7 +26,7 @@ Clone this repository and install the required dependencies using the following 
 ```
 git clone git@github.com:mjustynaPhD/GraphaRNA.git
 cd GraphaRNA
-conda env create --name gnn -f environment.yml
+pip install .
 ```
 
 Ensure you have **Python 3.10+** and **PyTorch 2.3.0+** installed, along with **PyTorch Geometric** for handling the graph components.
@@ -38,6 +38,9 @@ RiNALMo is a key component of GraphaRNA. To install that follow the instruction:
 git clone https://github.com/lbcb-sci/RiNALMo
 cd RiNALMo
 pip install .
+
+**Note**: To install flash-attn you need to run install it on GPU machine:
+```
 pip install flash-attn==2.3.2
 ```
 
@@ -66,7 +69,7 @@ The pickle files will be created in the directory `data/user_inputs`.
 #### Run model
 Then, to inference all structures from `data/user_inputs` directory run:
 ```
-python sample_rna_pdb.py --seed=0 --batch_size=32 --dim=256 --n_layer=6 --timesteps=5000 --knns=20
+grapharna --seed=0 --batch_size=32 --dim=256 --n_layer=6 --timesteps=5000 --knns=20
 ```
 
 ## Training

@@ -15,10 +15,10 @@ from torch_geometric.loader import DataLoader
 from torch_geometric import seed_everything
 import wandb
 
-from models import PAMNet, Config
-from datasets import RNAPDBDataset
-from utils import Sampler, SampleToPDB
-from losses import p_losses
+from grapharna.models import PAMNet, Config
+from grapharna.datasets import RNAPDBDataset
+from grapharna.utils import Sampler, SampleToPDB
+from grapharna.losses import p_losses
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -56,8 +56,7 @@ def sample(model, loader, device, sampler, epoch, num_batches=None, exp_name: st
             print(f"Sample batch {s_counter}")
             data = data.to(device)
             samples = sampler.sample(model, seqs, data)[-1]
-            s.to('xyz', samples, f"./samples/{exp_name}/{epoch}", name)
-            s.to('trafl', samples, f"./samples/{exp_name}/{epoch}", name)
+            s.to('pdb', samples, f"./samples/{exp_name}/{epoch}", name)
             s_counter += 1
 
             if num_batches is not None and s_counter >= num_batches:
