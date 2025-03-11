@@ -4,7 +4,6 @@ import argparse
 import numpy as np
 import random
 import torch
-import torch.nn.functional as F
 import torch.optim as optim
 import torch.distributed as dist
 import torch.multiprocessing as mp
@@ -17,7 +16,7 @@ import wandb
 
 from models import PAMNet, Config
 from datasets import RNAPDBDataset
-from utils import Sampler, SampleToPDB
+from utils import Sampler, SampleToPDB, SamplingMask
 from losses import p_losses
 
 def set_seed(seed):
@@ -37,27 +36,31 @@ def validation(model, loader, device, sampler, args):
     denoise_losses = []
     with torch.no_grad():
         for data, name, seqs in loader:
+            mask = data.x[:, -1].bool()
             data = data.to(device)
             t = torch.randint(0, args.timesteps, (args.batch_size,), device=device).long() # Generate random timesteps
             graphs_t = t[data.batch]
-            loss, denoise_loss = p_losses(model, data, seqs, graphs_t, sampler=sampler, loss_type="huber")
+            loss, denoise_loss = p_losses(model, data, seqs, graphs_t, sampler=sampler, loss_type="huber", mask=mask)
             losses.append(loss.item())
             denoise_losses.append(denoise_loss.item())
     model.train()
     return np.mean(losses), np.mean(denoise_losses)
 
-def sample(model, loader, device, sampler, epoch, num_batches=None, exp_name: str = "run"):
+def sample(model, loader, device, sampler, epoch, args, num_batches=None, exp_name: str = "run", ):
     model.eval()
     s = SampleToPDB()
+    mask_sampler = SamplingMask(args.sampling_resids, device=device)
     s_counter = 0
+
     with torch.no_grad():
         for data, name, seqs in loader:
             print(f"Sample batch {s_counter}")
             data = data.to(device)
-            samples = sampler.sample(model, seqs, data)[-1]
+            sampling_mask = mask_sampler.get_mask(data, name)
+            samples = sampler.sample(model, seqs, data, mask=sampling_mask)[-1]
             s.to('pdb', samples, f"./samples/{exp_name}/{epoch}", name)
-            s.to('xyz', samples, f"./samples/{exp_name}/{epoch}", name)
-            s.to('trafl', samples, f"./samples/{exp_name}/{epoch}", name)
+            # s.to('xyz', samples, f"./samples/{exp_name}/{epoch}", name)
+            # s.to('trafl', samples, f"./samples/{exp_name}/{epoch}", name)
             s_counter += 1
 
             if num_batches is not None and s_counter >= num_batches:
@@ -78,14 +81,16 @@ def main(world_size):
     parser.add_argument('--n_layer', type=int, default=2, help='Number of hidden layers.')
     parser.add_argument('--dim', type=int, default=64, help='Size of input hidden units.')
     parser.add_argument('--batch_size', type=int, default=8, help='batch_size')
-    parser.add_argument('--cutoff_l', type=float, default=0.5, help='cutoff in local layer')
-    parser.add_argument('--cutoff_g', type=float, default=1.60, help='cutoff in global layer')
+    parser.add_argument('--cutoff_l', type=float, default=5, help='cutoff in local layer')
+    parser.add_argument('--cutoff_g', type=float, default=16, help='cutoff in global layer')
     parser.add_argument('--timesteps', type=int, default=500, help='timesteps')
     parser.add_argument('--wandb', action='store_true', help='Use wandb for logging')
     parser.add_argument('--mode', type=str, default='coarse-grain', help='Mode of the dataset')
     parser.add_argument('--lr-step', type=int, default=30, help='Step size for learning rate scheduler')
     parser.add_argument('--lr-gamma', type=float, default=0.9, help='Gamma for learning rate scheduler')
     parser.add_argument('--knns', type=int, default=2, help='Number of knn neighbors')
+    parser.add_argument('--blocks', type=int, default=4, help='Number of transformer blocks in the model')
+    parser.add_argument('--load', action='store_true', help='Path to the model to load')
     args = parser.parse_args()
     
     # setup(rank, world_size)
@@ -94,7 +99,7 @@ def main(world_size):
 
     if args.wandb and rank == 0:
         wandb.login()
-        run = wandb.init(project='RNA-GNN-Diff-SeqEncoder', config=args)
+        run = wandb.init(project='RNA-GNN-Full-RNAs', config=args)
         exp_name = run.name
     else:
         exp_name = "test"
@@ -120,14 +125,27 @@ def main(world_size):
         break
 
     sampler = Sampler(timesteps=args.timesteps)
-    config = Config(dataset=args.dataset, dim=args.dim, n_layer=args.n_layer, cutoff_l=args.cutoff_l, cutoff_g=args.cutoff_g, mode=args.mode, knns=args.knns)
+    config = Config(dataset=args.dataset,
+                    dim=args.dim,
+                    n_layer=args.n_layer,
+                    cutoff_l=args.cutoff_l,
+                    cutoff_g=args.cutoff_g,
+                    mode=args.mode,
+                    knns=args.knns,
+                    transformer_blocks=args.blocks
+                    )
 
     model = PAMNet(config).to(device)
+    # load state dict of a pre-trained model
+    if args.load:
+        model.load_state_dict(torch.load("save/twilight-shadow-129/model_200.h5"))
+
     model = DDP(model, device_ids=[rank], find_unused_parameters=True)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     scheduler = StepLR(optimizer, step_size=args.lr_step, gamma=args.lr_gamma)
     
     print("Start training!")
+    torch.autograd.set_detect_anomaly(True)
     
     dist.barrier()
     for epoch in range(args.epochs):
@@ -136,21 +154,21 @@ def main(world_size):
         losses = []
         denoise_losses = []
         for data, name, seqs in train_loader:
-            
+            mask = data.x[:, -1].bool()
             data = data.to(device)
             optimizer.zero_grad()
 
             t = torch.randint(0, args.timesteps, (args.batch_size,), device=device).long() # Generate random timesteps
             graphs_t = t[data.batch]
             
-            loss_all, loss_denoise = p_losses(model, data, seqs, graphs_t, sampler=sampler, loss_type="huber")
+            loss_all, loss_denoise = p_losses(model, data, seqs, graphs_t, sampler=sampler, loss_type="huber", mask=mask)
 
             loss_all.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 2.0) # prevent exploding gradients
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0) # prevent exploding gradients
             optimizer.step()
             losses.append(loss_all.item())
             denoise_losses.append(loss_denoise.item())
-            if step % 50 == 0 and step != 0:
+            if step % 5 == 0 and step != 0:
                 val_loss, val_denoise_loss = validation(model, val_loader, device, sampler, args)
                 if args.wandb and rank == 0:
                     print(f'Epoch: {epoch+1}, Step: {step}, Loss: {np.mean(losses):.4f}, Denoise Loss: {np.mean(denoise_losses):.4f}, Val Loss: {val_loss:.4f}, Val Denoise Loss: {val_denoise_loss:.4f} LR: {scheduler.get_last_lr()[0]}')
@@ -173,7 +191,7 @@ def main(world_size):
         if not os.path.exists(save_folder) and rank==0:
             os.makedirs(save_folder)
 
-        if epoch %5 == 0 and rank==0:
+        if epoch % 10 == 0 and epoch > 0 and rank==0:
             print(f"Saving model at epoch {epoch} to {save_folder}")
             torch.save(model.module.state_dict(), f"{save_folder}/model_{epoch}.h5")
 

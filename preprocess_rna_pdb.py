@@ -1,3 +1,6 @@
+from constants import RESIDUES, ATOM_TYPES, RESIDUE_CONNECTION_GRAPH,\
+    DOT_OPENINGS, DOT_CLOSINGS_MAP, KEEP_ELEMENTS, COARSE_GRAIN_MAP, ATOM_ELEMENTS
+
 import os
 import numpy as np
 from tqdm import tqdm
@@ -11,8 +14,7 @@ from rnapolis.parser import read_3d_structure
 import warnings
 from Bio import BiopythonWarning
 warnings.simplefilter('ignore', BiopythonWarning)
-from constants import RESIDUES, ATOM_TYPES, RESIDUE_CONNECTION_GRAPH,\
-    DOT_OPENINGS, DOT_CLOSINGS_MAP, KEEP_ELEMENTS, COARSE_GRAIN_MAP, ATOM_ELEMENTS
+
 
 def load_molecule(molecule_file):
     if ".mol2" in molecule_file:
@@ -30,45 +32,60 @@ def load_molecule(molecule_file):
     xyz = get_xyz_from_mol(my_mol)
     return xyz, my_mol
 
-def load_with_bio(molecule_file, file_type:str=".pdb"):
+def load_with_bio(molecule_file, seq_segments, file_type:str=".pdb"):
     if file_type.endswith("pdb"):
         parser = PDBParser()
         structure = parser.get_structure("rna", molecule_file)
     else:
         parser = MMCIFParser()
         structure = parser.get_structure("rna", molecule_file)
-    coords = []
-    atoms_elements = []
-    atoms_names = []
-    residues_names = []
-    p_missing = []
-    c4_prime = []
-    c2 = []
-    c4_or_c6 = []
-    n1_or_n9 = []
-    res_in_chain = []
+    # generate full structure with all atoms
+    coords, atoms_elements, atoms_names, residues_names, p_missing, c4_prime, c2, c4_or_c6, n1_or_n9, res_in_chain, coords_updated = generate_atoms(seq_segments)
+    coords_in_residue = np.array(coords) # atoms order in coords: P, C4', Nx, C2, Cx
+    coords_in_residue = coords_in_residue.reshape((-1, 5, 3)) # 5 atoms in each residue
+    coords_updated = coords_updated.reshape((-1, 5))
+
+    res_id = 0
     for model in structure:
         for chain in model:
             for residue in chain:
                 # HETATM are residues as well, skip them.
-                if residue.id[0].startswith('H_'):
+                if residue.id[0].startswith('H_') or\
+                   residue.get_resname() not in RESIDUES.keys() or\
+                   res_id >= len(seq_segments[0]): # sometimes there is 
                     continue
-                p_is_missing = True
-                for atom in residue:
-                    coords.append(atom.get_coord())
-                    atoms_elements.append(atom.element)
-                    atoms_names.append(atom.get_name())
-                    residues_names.append(residue.get_resname())
-                    if atom.get_name() == "P":
-                        p_is_missing = False
-                    c4_prime.append(atom.get_name() == "C4'")
-                    c2.append(atom.get_name() == "C2")
-                    c4_or_c6.append(atom.get_name() == "C4" or atom.get_name() == "C6")
-                    n1_or_n9.append(atom.get_name() == "N1" or atom.get_name() == "N9")
-                    res_in_chain.append(chain.id)
-                p_missing.append(p_is_missing)
+                
+                if residue.get_resname() == 'U' or residue.get_resname() == 'C':
+                    pur_pir_C = 'C4'
+                    pur_pir_N = 'N1'
+                elif residue.get_resname() == 'A' or residue.get_resname() == 'G':
+                    pur_pir_C = 'C6'
+                    pur_pir_N = 'N9'
 
-    return np.array(coords), atoms_elements, atoms_names, residues_names, p_missing, c4_prime, c2, c4_or_c6, n1_or_n9, res_in_chain
+                res_coords = coords_in_residue[res_id]
+                res_coords_update = [False]*5
+                for atom in residue:
+                    if atom.get_name() == "P":
+                        res_coords[0] = atom.get_coord()
+                        res_coords_update[0] = True
+                    elif atom.get_name() == "C4'":
+                        res_coords[1] = atom.get_coord()
+                        res_coords_update[1] = True
+                    elif atom.get_name() == pur_pir_N:
+                        res_coords[2] = atom.get_coord()
+                        res_coords_update[2] = True
+                    elif atom.get_name() == "C2":
+                        res_coords[3] = atom.get_coord()
+                        res_coords_update[3] = True
+                    elif atom.get_name() == pur_pir_C:
+                        res_coords[4] = atom.get_coord()
+                        res_coords_update[4] = True
+                if sum(res_coords_update) >= 3: # if at least 3 atoms are present, consider the residue as present
+                    coords_in_residue[res_id] = res_coords
+                    coords_updated[res_id] = res_coords_update
+                    res_id += 1
+
+    return coords_in_residue.reshape((-1, 3)), atoms_elements, atoms_names, residues_names, p_missing, c4_prime, c2, c4_or_c6, n1_or_n9, res_in_chain, coords_updated.reshape(-1)
 
 def generate_atoms(seq_segments):
     coords = []
@@ -87,7 +104,7 @@ def generate_atoms(seq_segments):
             if resi == 'T': # in case of DNA sequences convert to RNA
                 resi = 'U'
             for atom in COARSE_GRAIN_MAP[resi]:
-                coords.append([0,0,0])
+                coords.append([0.,0.,0.])
                 atoms_elements.append(ATOM_ELEMENTS[atom])
                 atoms_names.append(atom)
                 residues_names.append(resi)
@@ -98,7 +115,8 @@ def generate_atoms(seq_segments):
                 n1_or_n9.append(atom == "N1" or atom == "N9")
                 res_in_chain.append(chain)
         chain = chr(ord(chain) + 1)
-    return np.array(coords), atoms_elements, atoms_names, residues_names, p_missing, c4_prime, c2, c4_or_c6, n1_or_n9, res_in_chain
+    coords_updated = [False]*len(coords)
+    return np.array(coords), atoms_elements, atoms_names, residues_names, p_missing, c4_prime, c2, c4_or_c6, n1_or_n9, res_in_chain, np.array(coords_updated)
 
 def get_xyz_from_mol(mol):
     xyz = np.zeros((mol.GetNumAtoms(), 3))
@@ -281,17 +299,25 @@ def construct_graphs(seq_dir, pdbs_dir, save_dir, save_name, file_3d_type:str=".
             continue
         
 
-        res_pairs, seq_segments = get_bpseq_pairs(rna_file, seq_path=seq_path, extended_dotbracket=extended_dotbracket)
+        try:
+            res_pairs, seq_segments = get_bpseq_pairs(rna_file, seq_path=seq_path, extended_dotbracket=extended_dotbracket)
+        except IndexError:
+            print("Error reading dotbracket", rna_file)
+            continue
+
+        if not seq_segments:
+            print("Error reading sequence", rna_file)
+            continue
 
 
         if sampling:
-            rna_coords, elements, atoms_symbols, residues_names, p_missing, c4_primes, c2, c4_or_c6, n1_or_n9, chains = generate_atoms(seq_segments)
+            rna_coords, elements, atoms_symbols, residues_names, p_missing, c4_primes, c2, c4_or_c6, n1_or_n9, chains, coords_updated = generate_atoms(seq_segments)
         else:
             try:
-                rna_coords, elements, atoms_symbols, residues_names, p_missing, c4_primes, c2, c4_or_c6, n1_or_n9, chains = load_with_bio(rna_file, file_3d_type)
-            except ValueError:
-                print("Error reading molecule", rna_file)
-                continue
+                rna_coords, elements, atoms_symbols, residues_names, p_missing, c4_primes, c2, c4_or_c6, n1_or_n9, chains, coords_updated = load_with_bio(rna_file, seq_segments, file_3d_type)
+            # except ValueError:
+            #     print("Error reading molecule", rna_file)
+            #     continue
             except Bio.PDB.PDBExceptions.PDBConstructionException as e:
                 print("Error reading molecule (invalid or missing coordinate)", rna_file)
                 continue
@@ -312,6 +338,9 @@ def construct_graphs(seq_dir, pdbs_dir, save_dir, save_name, file_3d_type:str=".
         residues_x = np.array([RESIDUES[x] for x in residues_names]) # Convert residues to types
 
         assert len(rna_x) == len(rna_pos) == len(atoms_symbols) == len(residues_x) == len(c4_primes)
+        if len(rna_pos) == 0:
+            print("Structure contains too few atoms (e.g. backbone only).", rna_file)
+            continue
 
         crs_gr_mask = get_coarse_grain_mask(atoms_symbols, residues_names)
 
@@ -326,7 +355,8 @@ def construct_graphs(seq_dir, pdbs_dir, save_dir, save_name, file_3d_type:str=".
         data['c2'] = np.array(c2)[crs_gr_mask]
         data['c4_or_c6'] = np.array(c4_or_c6)[crs_gr_mask]
         data['n1_or_n9'] = np.array(n1_or_n9)[crs_gr_mask]
-        # data['chains'] = np.array(chains)[crs_gr_mask]
+        data['chains'] = np.array(chains)[crs_gr_mask]
+        data['coords_updated'] = np.array(coords_updated)[crs_gr_mask]
         try:
             edges, edge_type = get_edges_in_COO(data, seq_segments, p_missing=p_missing, bpseq=res_pairs)
         # except ValueError as e:
@@ -344,7 +374,6 @@ def construct_graphs(seq_dir, pdbs_dir, save_dir, save_name, file_3d_type:str=".
 
 def main():
     extended_dotbracket = False
-    data_dir = "/home/mjustyna/data/"
     # seq_dir = os.path.join(data_dir, "hl_seqs")
     # pdbs_dir = os.path.join(data_dir, "hl_pdbs")
     # save_dir = os.path.join(".", "data", "RNA-bgsu-hl-cn")
@@ -355,11 +384,11 @@ def main():
     # seq_dir = os.path.join(data_dir, "seqs")
     # pdbs_dir = os.path.join(data_dir, "pdbs")
 
-    data_dir = "/home/mjustyna/data/rna3db-mmcifs/"
+    data_dir = "/home/mjustyna/data/eval_examples/"
     seq_dir = None
-    pdbs_dir = os.path.join(data_dir, "train-500")
-    save_dir = os.path.join(".", "data", "rna3db")
-    construct_graphs(seq_dir, pdbs_dir, save_dir, "train-pkl", file_3d_type='.cif', extended_dotbracket=extended_dotbracket, sampling=False)
+    pdbs_dir = os.path.join(data_dir, "5_segment")
+    save_dir = os.path.join(".", "data", "eval-pdb")
+    construct_graphs(seq_dir, pdbs_dir, save_dir, "5_segment", file_3d_type='.pdb', extended_dotbracket=extended_dotbracket, sampling=False)
     
     # data_dir = "/home/mjustyna/data/"
     # seq_dir = os.path.join(data_dir, "sim_desc")

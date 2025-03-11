@@ -12,16 +12,16 @@
             "console": "integratedTerminal",
             "args": [
                 "--dataset",
-                "RNA-PDB-clean",
-                "--epochs=101",
-                "--batch_size=8",
-                "--dim=256",
-                "--n_layer=4",
+                "rna3db",
+                "--epochs=5",
+                "--batch_size=2",
+                "--dim=64",
+                "--n_layer=2",
                 "--lr=1e-3",
-                "--timesteps=5000",
+                "--timesteps=500",
                 "--mode",
                 "coarse-grain",
-                "--knn=20"
+                "--knn=2"
             ]
         },
         {
@@ -40,12 +40,13 @@
             "program": "sample_rna_pdb.py",
             "console": "integratedTerminal",
             "args": [
-                "--seed=0"
-                "--batch_size=64",
+                "--seed=10"
+                "--batch_size=2",
                 "--dim=256",
-                "--n_layer=6",
-                "--timesteps=5000",
-                "--knns=20",
+                "--n_layer=4",
+                "--timesteps=1000",
+                "--knns=1",
+                "--sampling-resids=sampling_masks.txt"
             ]
         },
         {
@@ -72,10 +73,11 @@
                 // "--preds-path=/home/mjustyna/RNA-GNN/samples/af3_preds/ours/",
                 // "--templates-path=/home/mjustyna/data/motifs/il_pdbs",
                 // "--targets-path=/home/mjustyna/RNA-GNN/samples/af3_preds/targets/",
-                "--preds-path=/home/mjustyna/RNA-GNN/samples/glowing-terrain-25-eval-clean-seed=4/800/",
+                "--preds-path=/home/mjustyna/RNA-GNN/samples/RhoFold/1_segment/",
+                // "--preds-path=/home/mjustyna/RNA-GNN/samples/DRfold/1/",
                 // "--templates-path=/home/mjustyna/data/eval_examples_pdb/clean/",
-                "--targets-path=/home/mjustyna/data/eval_examples_pdb/clean/",
-                "--arena_path=/home/mjustyna/software/Arena/"
+                "--targets-path=/home/mjustyna/data/desc-pdbs/",
+                // "--arena_path=/home/mjustyna/software/Arena/"
                 // "--templates-path=/home/mjustyna/data/motifs/j3_pdbs/",
                 // "--targets-path=/home/mjustyna/data/motifs/j3_pdbs/",
                 // "--templates-path=/home/mjustyna/RNA-GNN/user_inputs/pdbs/",

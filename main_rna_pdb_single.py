@@ -37,10 +37,11 @@ def validation(model, loader, device, sampler, args):
     denoise_losses = []
     with torch.no_grad():
         for data, name, seqs in loader:
+            mask = data.x[:, -1].bool()
             data = data.to(device)
             t = torch.randint(0, args.timesteps, (args.batch_size,), device=device).long() # Generate random timesteps
             graphs_t = t[data.batch]
-            loss, denoise_loss = p_losses(model, data, seqs, graphs_t, sampler=sampler, loss_type="huber")
+            loss, denoise_loss = p_losses(model, data, seqs, graphs_t, sampler=sampler, loss_type="huber", mask=mask)
             losses.append(loss.item())
             denoise_losses.append(denoise_loss.item())
     model.train()
@@ -51,7 +52,7 @@ def sample(model, loader, device, sampler, epoch, num_batches=None, exp_name: st
     s = SampleToPDB()
     s_counter = 0
     with torch.no_grad():
-        for data, name, seqs in loader:
+        for data, name, seqs, mask in loader:
             print(f"Sample batch {s_counter}")
             data = data.to(device)
             samples = sampler.sample(model, seqs, data)[-1]
@@ -72,14 +73,15 @@ def main():
     parser.add_argument('--n_layer', type=int, default=2, help='Number of hidden layers.')
     parser.add_argument('--dim', type=int, default=64, help='Size of input hidden units.')
     parser.add_argument('--batch_size', type=int, default=8, help='batch_size')
-    parser.add_argument('--cutoff_l', type=float, default=0.5, help='cutoff in local layer')
-    parser.add_argument('--cutoff_g', type=float, default=1.60, help='cutoff in global layer')
+    parser.add_argument('--cutoff_l', type=float, default=5, help='cutoff in local layer')
+    parser.add_argument('--cutoff_g', type=float, default=16, help='cutoff in global layer')
     parser.add_argument('--timesteps', type=int, default=500, help='timesteps')
     parser.add_argument('--wandb', action='store_true', help='Use wandb for logging')
     parser.add_argument('--mode', type=str, default='coarse-grain', help='Mode of the dataset')
     parser.add_argument('--lr-step', type=int, default=30, help='Step size for learning rate scheduler')
     parser.add_argument('--lr-gamma', type=float, default=0.9, help='Gamma for learning rate scheduler')
     parser.add_argument('--knns', type=int, default=2, help='Number of knn neighbors')
+    parser.add_argument('--blocks', type=int, default=4, help='Number of transformer blocks in the model')
     args = parser.parse_args()
 
 
@@ -108,8 +110,9 @@ def main():
         break
 
     sampler = Sampler(timesteps=args.timesteps)
-    config = Config(dataset=args.dataset, dim=args.dim, n_layer=args.n_layer, cutoff_l=args.cutoff_l, cutoff_g=args.cutoff_g, mode=args.mode, knns=args.knns)
+    config = Config(dataset=args.dataset, dim=args.dim, n_layer=args.n_layer, cutoff_l=args.cutoff_l, cutoff_g=args.cutoff_g, mode=args.mode, knns=args.knns, transformer_blocks=args.blocks)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # device = 'cpu'
     model = PAMNet(config).to(device)
     # model_path = f"save/still-valley-338/model_800.h5"
     # model.load_state_dict(torch.load(model_path))
@@ -125,17 +128,18 @@ def main():
         losses = []
         denoise_losses = []
         for data, name, seqs in train_loader:
-            
+            mask = data.x[:, -1].bool()
             data = data.to(device)
             optimizer.zero_grad()
 
             t = torch.randint(0, args.timesteps, (args.batch_size,), device=device).long() # Generate random timesteps
             graphs_t = t[data.batch]
             
-            loss_all, loss_denoise = p_losses(model, data, seqs, graphs_t, sampler=sampler, loss_type="huber")
+            loss_all, loss_denoise = p_losses(model, data, seqs, graphs_t, sampler=sampler, loss_type="huber", mask=mask)
 
             loss_all.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 2.0) # prevent exploding gradients
+
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 2.0, error_if_nonfinite=True) # prevent exploding gradients
             optimizer.step()
             losses.append(loss_all.item())
             denoise_losses.append(loss_denoise.item())
@@ -146,7 +150,8 @@ def main():
                 losses = []
                 denoise_losses = []
             elif not args.wandb:
-                print(f"Epoch: {epoch}, step: {step}, loss: {loss_all.item():.4f} ")
+                val_loss, val_denoise_loss = validation(model, val_loader, device, sampler, args)
+                print(f"Epoch: {epoch}, step: {step}, loss: {loss_all.item():.4f} val_loss: {val_loss:.4f}")
                 # val_loss, val_denoise_loss = test(model, val_loader, device, sampler, args)
                 # print(f'Val Loss: {val_loss:.4f}, Val Denoise Loss: {val_denoise_loss:.4f}')
             # if step >= max_steps:
@@ -172,7 +177,6 @@ def main():
         # if best_val_loss is None or val_loss < best_val_loss:
         #     best_val_loss = val_loss
         #     torch.save(model.state_dict(), os.path.join(save_folder, "best_model.h5"))
-    
     torch.save(model.state_dict(), f"{save_folder}/model_{epoch}.h5")
 
 

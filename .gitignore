@@ -11,3 +11,11 @@ user_inputs/*
 *.pyc
 rna_gnn.egg-info/*
 *.out
+*.pdb
+*.csv
+*.txt
+*.cif
+
+#cpython
+__pycache__/*
+*.pyc*
