@@ -15,6 +15,7 @@ rna_gnn.egg-info/*
 *.csv
 *.txt
 *.cif
+build/*
 
 #cpython
 __pycache__/*
