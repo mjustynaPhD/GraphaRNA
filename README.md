@@ -38,10 +38,9 @@ RiNALMo is a key component of GraphaRNA. To install that follow the instruction:
 git clone https://github.com/lbcb-sci/RiNALMo
 cd RiNALMo
 pip install .
+pip install flash-attn==2.3.2
 
 **Note**: To install flash-attn you need to run install it on GPU machine:
-```
-pip install flash-attn==2.3.2
 ```
 
 ## Inference
