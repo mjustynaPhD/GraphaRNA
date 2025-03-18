@@ -8,17 +8,19 @@ version = "0.1.0"
 description = "Graph Neural Network and Diffusion Model for Modeling RNA Interatomic Interactions"
 authors = [{name = "Marek Justyna", email = "mjustyna@cs.put.poznan.pl"}]
 dependencies = [
-    "torch>=2.3.0",
-    "torch-geometric>=2.5.3",
-    "numpy>=1.26.0",
+    "torch==2.3.0",
+    "torch-geometric==2.5.3",
+    "numpy==1.26.4",
     "scikit-learn>=1.4.0",
     "pandas",
     "scipy",
     "biopython>=1.83",
+    "rnapolis==0.3.11",
     "wandb",
-    "torch-sparse>=0.6.18",
-    "torch-scatter>=2.1.2",
-    "torch-cluster>=1.6.3",
+    "torch-sparse==0.6.18",
+    "torch-scatter==2.1.2",
+    "torch-cluster==1.6.3",
+    "flash-attn==2.3.2"
 ]
 requires-python = ">=3.10"
 

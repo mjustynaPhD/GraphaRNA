@@ -1,10 +1,6 @@
-from constants import RESIDUES, ATOM_TYPES, RESIDUE_CONNECTION_GRAPH,\
-    DOT_OPENINGS, DOT_CLOSINGS_MAP, KEEP_ELEMENTS, COARSE_GRAIN_MAP, ATOM_ELEMENTS
-
 import os
 import numpy as np
 from tqdm import tqdm
-from rdkit import Chem
 import pickle
 import Bio
 from Bio.PDB import PDBParser, MMCIFParser
@@ -13,24 +9,12 @@ from rnapolis.parser import read_3d_structure
 # from torch_geometric.data import Data
 import warnings
 from Bio import BiopythonWarning
+
 warnings.simplefilter('ignore', BiopythonWarning)
 
+from grapharna.constants import RESIDUES, ATOM_TYPES, RESIDUE_CONNECTION_GRAPH,\
+    DOT_OPENINGS, DOT_CLOSINGS_MAP, KEEP_ELEMENTS, COARSE_GRAIN_MAP, ATOM_ELEMENTS
 
-def load_molecule(molecule_file):
-    if ".mol2" in molecule_file:
-        my_mol = Chem.MolFromMol2File(molecule_file, sanitize=False, removeHs=True)
-    elif ".sdf" in molecule_file:
-        suppl = Chem.SDMolSupplier(str(molecule_file), sanitize=False, removeHs=True)
-        my_mol = suppl[0]
-    elif ".pdb" in molecule_file:
-        my_mol = Chem.MolFromPDBFile(
-            str(molecule_file), sanitize=False, removeHs=True)
-    else:
-        raise ValueError("Unrecognized file type for %s" % str(molecule_file))
-    if my_mol is None:
-        raise ValueError("Unable to read non None Molecule Object")
-    xyz = get_xyz_from_mol(my_mol)
-    return xyz, my_mol
 
 def load_with_bio(molecule_file, seq_segments, file_type:str=".pdb"):
     if file_type.endswith("pdb"):
@@ -309,67 +293,64 @@ def construct_graphs(seq_dir, pdbs_dir, save_dir, save_name, file_3d_type:str=".
             print("Error reading sequence", rna_file)
             continue
 
+        process_rna_file(rna_file, seq_segments, file_3d_type, sampling, save_dir_full, name, res_pairs)
 
-        if sampling:
-            rna_coords, elements, atoms_symbols, residues_names, p_missing, c4_primes, c2, c4_or_c6, n1_or_n9, chains, coords_updated = generate_atoms(seq_segments)
-        else:
-            try:
-                rna_coords, elements, atoms_symbols, residues_names, p_missing, c4_primes, c2, c4_or_c6, n1_or_n9, chains, coords_updated = load_with_bio(rna_file, seq_segments, file_3d_type)
-            # except ValueError:
-            #     print("Error reading molecule", rna_file)
-            #     continue
-            except Bio.PDB.PDBExceptions.PDBConstructionException as e:
-                print("Error reading molecule (invalid or missing coordinate)", rna_file)
-                continue
 
-        elem_indices = set([i for i,x in enumerate(elements) if x in KEEP_ELEMENTS]) # keep only C, N, O, P atoms, remove all the others
-        res_indices = set([i for i,x in enumerate(residues_names) if x in RESIDUES.keys()]) # keep only A, G, U, C residues, remove all the others
-        x_indices = list(elem_indices.intersection(res_indices))
-        elements = [elements[i] for i in x_indices]
-        atoms_symbols = [atoms_symbols[i] for i in x_indices]
-        residues_names = [residues_names[i] for i in x_indices]
-        c4_primes = [c4_primes[i] for i in x_indices]
-        c2 = [c2[i] for i in x_indices]
-        c4_or_c6 = [c4_or_c6[i] for i in x_indices]
-        n1_or_n9 = [n1_or_n9[i] for i in x_indices]
-        rna_pos = np.array(rna_coords[x_indices])
-
-        rna_x = np.array([ATOM_TYPES[x] for x in elements]) # Convert atomic numbers to types
-        residues_x = np.array([RESIDUES[x] for x in residues_names]) # Convert residues to types
-
-        assert len(rna_x) == len(rna_pos) == len(atoms_symbols) == len(residues_x) == len(c4_primes)
-        if len(rna_pos) == 0:
-            print("Structure contains too few atoms (e.g. backbone only).", rna_file)
-            continue
-
-        crs_gr_mask = get_coarse_grain_mask(atoms_symbols, residues_names)
-
-        data = {}
-        data['atoms'] = rna_x[crs_gr_mask]
-        data['pos'] = rna_pos[crs_gr_mask]
-        data['symbols'] = np.array(atoms_symbols)[crs_gr_mask]
-        # data['indicator'] = graph_indicator[crs_gr_mask]
-        data['name'] = name
-        data['residues'] = residues_x[crs_gr_mask]
-        data['c4_primes'] = np.array(c4_primes)[crs_gr_mask]
-        data['c2'] = np.array(c2)[crs_gr_mask]
-        data['c4_or_c6'] = np.array(c4_or_c6)[crs_gr_mask]
-        data['n1_or_n9'] = np.array(n1_or_n9)[crs_gr_mask]
-        data['chains'] = np.array(chains)[crs_gr_mask]
-        data['coords_updated'] = np.array(coords_updated)[crs_gr_mask]
+def process_rna_file(rna_file, seq_segments, file_3d_type, sampling, save_dir_full, name, res_pairs):
+    if sampling:
+        rna_coords, elements, atoms_symbols, residues_names, p_missing, c4_primes, c2, c4_or_c6, n1_or_n9, chains, coords_updated = generate_atoms(seq_segments)
+    else:
         try:
-            edges, edge_type = get_edges_in_COO(data, seq_segments, p_missing=p_missing, bpseq=res_pairs)
-        # except ValueError as e:
-        #     print(f"Value Error in processing {name}: {e}")
-        #     continue
-        except IndexError as e:
-            print(f"Index Error in processing {name}: {e}")
-            continue
-        data['edges'] = np.array(edges)
-        data['edge_type'] = edge_type
+            rna_coords, elements, atoms_symbols, residues_names, p_missing, c4_primes, c2, c4_or_c6, n1_or_n9, chains, coords_updated = load_with_bio(rna_file, seq_segments, file_3d_type)
+        except Bio.PDB.PDBExceptions.PDBConstructionException as e:
+            print("Error reading molecule (invalid or missing coordinate)", rna_file)
+            return
 
-        with open(os.path.join(save_dir_full, name.replace(file_3d_type, ".pkl")), "wb") as f:
-            pickle.dump(data, f)
+    elem_indices = set([i for i, x in enumerate(elements) if x in KEEP_ELEMENTS])  # keep only C, N, O, P atoms
+    res_indices = set([i for i, x in enumerate(residues_names) if x in RESIDUES.keys()])  # keep only A, G, U, C residues
+    x_indices = list(elem_indices.intersection(res_indices))
+    elements = [elements[i] for i in x_indices]
+    atoms_symbols = [atoms_symbols[i] for i in x_indices]
+    residues_names = [residues_names[i] for i in x_indices]
+    c4_primes = [c4_primes[i] for i in x_indices]
+    c2 = [c2[i] for i in x_indices]
+    c4_or_c6 = [c4_or_c6[i] for i in x_indices]
+    n1_or_n9 = [n1_or_n9[i] for i in x_indices]
+    rna_pos = np.array(rna_coords[x_indices])
+
+    rna_x = np.array([ATOM_TYPES[x] for x in elements])  # Convert atomic numbers to types
+    residues_x = np.array([RESIDUES[x] for x in residues_names])  # Convert residues to types
+
+    assert len(rna_x) == len(rna_pos) == len(atoms_symbols) == len(residues_x) == len(c4_primes)
+    if len(rna_pos) == 0:
+        print("Structure contains too few atoms (e.g. backbone only).", rna_file)
+        return
+
+    crs_gr_mask = get_coarse_grain_mask(atoms_symbols, residues_names)
+
+    data = {}
+    data['atoms'] = rna_x[crs_gr_mask]
+    data['pos'] = rna_pos[crs_gr_mask]
+    data['symbols'] = np.array(atoms_symbols)[crs_gr_mask]
+    data['name'] = name
+    data['residues'] = residues_x[crs_gr_mask]
+    data['c4_primes'] = np.array(c4_primes)[crs_gr_mask]
+    data['c2'] = np.array(c2)[crs_gr_mask]
+    data['c4_or_c6'] = np.array(c4_or_c6)[crs_gr_mask]
+    data['n1_or_n9'] = np.array(n1_or_n9)[crs_gr_mask]
+    data['chains'] = np.array(chains)[crs_gr_mask]
+    data['coords_updated'] = np.array(coords_updated)[crs_gr_mask]
+    try:
+        edges, edge_type = get_edges_in_COO(data, seq_segments, p_missing=p_missing, bpseq=res_pairs)
+    except IndexError as e:
+        print(f"Index Error in processing {name}: {e}")
+        return
+    data['edges'] = np.array(edges)
+    data['edge_type'] = edge_type
+
+    os.makedirs(save_dir_full, exist_ok=True)
+    with open(os.path.join(save_dir_full, name.replace(file_3d_type, ".pkl")), "wb") as f:
+        pickle.dump(data, f)
 
 
 def main():

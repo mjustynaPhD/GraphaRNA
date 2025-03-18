@@ -17,7 +17,7 @@ class Config(object):
         if mode == "backbone":
             self.out_dim = 12
         else:
-            self.out_dim = 16
+            self.out_dim = 15
         self.n_layer = n_layer
         self.cutoff_l = cutoff_l
         self.cutoff_g = cutoff_g
@@ -42,7 +42,7 @@ class SequenceModule(nn.Module):
     def __init__(self, dim):
         super(SequenceModule, self).__init__()
         self.rinalmo, self.alphabet = get_pretrained_model(model_name="giga-v1")
-        self.out_embedding = nn.Linear(1280, dim)
+        self.out_embedding = nn.Linear(1280, dim, bias=False)
         self.emb_act = nn.ReLU()
 
     def forward(self, seqs, device):
@@ -75,9 +75,8 @@ class SequenceStructureModule(nn.Module):
         return out
 
 class PAMNet(nn.Module):
-    def __init__(self, config: Config, num_spherical=3, num_radial=6, envelope_exponent=2, time_dim=16):
+    def __init__(self, config: Config, num_spherical=7, num_radial=6, envelope_exponent=5, time_dim=16):
         super(PAMNet, self).__init__()
-
         self.dataset = config.dataset
         self.dim = config.dim
         self.time_dim = time_dim
@@ -88,17 +87,18 @@ class PAMNet(nn.Module):
         self.knns = config.knns
         self.non_mutable_edges:dict = None
         self.seq_emb_dim = config.dim
+        self.blocks = config.transformer_blocks
         
         assert self.dim % 2 == 0, "The dimension of the embeddings must be even."
 
         self.total_dim = self.dim + self.atom_dim + self.seq_emb_dim + self.time_dim
         self.init_linear = MLP([3, self.dim])
         # self.atom_properties = nn.Linear(self.atom_dim, self.dim//2, bias=False)
-        radial_bessels = 5
+        radial_bessels = 16
         # self.attn = nn.MultiheadAttention(self.dim + self.time_dim, num_heads=4)
 
         self.sequence_module = SequenceModule(self.seq_emb_dim)
-        self.seq_struct_module = SequenceStructureModule(self.seq_emb_dim + self.dim, n_layers=config.transformer_blocks, nhead=8)
+        self.seq_struct_module = SequenceStructureModule(self.seq_emb_dim + self.dim, n_layers=self.blocks, nhead=8)
 
         self.rbf_g = BesselBasisLayer(radial_bessels, self.cutoff_g, envelope_exponent)
         self.rbf_l = BesselBasisLayer(radial_bessels, self.cutoff_l, envelope_exponent)
@@ -128,6 +128,8 @@ class PAMNet(nn.Module):
         # self.out_linear = nn.Linear(2*config.out_dim+self.time_dim, config.out_dim)
         self.struct_emb = nn.Linear(2*self.total_dim, config.dim)
         self.out_linear = nn.Linear(self.seq_emb_dim + self.dim + self.total_dim, config.out_dim)
+
+        self.softmax = nn.Softmax(dim=-1)
 
     def get_edge_info(self, edge_index, edge_attr, pos):
         edge_index, edge_attr = remove_self_loops(edge_index, edge_attr)
@@ -235,7 +237,7 @@ class PAMNet(nn.Module):
         batch = data.batch # This parameter assigns an index to each node in the graph, indicating which graph it belongs to.
 
         x_raw = x_raw.unsqueeze(-1) if x_raw.dim() == 1 else x_raw
-        x = x_raw[:, 3:]  # one-hot encoded atom types
+        x = x_raw[:, 3:]  # one-hot encoded atom types;
         seq_emb = self.sequence_module(seqs, x.device)
         seq_x, seq_emb = self.merge_seq_embeddings(seq_emb, x)
         time_emb = self.time_mlp(t)
@@ -320,7 +322,7 @@ class PAMNet(nn.Module):
         att_score = torch.cat((torch.cat(att_score_global, 0), torch.cat(att_score_local, 0)), -1)
         # att_score = torch.cat(att_score_local, 0)
         att_score = F.leaky_relu(att_score, 0.2)
-        att_weight = torch.logsumexp(att_score, dim=-1, keepdim=True)
+        att_weight = self.softmax(att_score)
 
         out = torch.cat((torch.cat(out_global, 0), torch.cat(out_local, 0)), -1)
         # out = torch.cat(out_local, 0)
