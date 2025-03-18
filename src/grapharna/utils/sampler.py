@@ -69,9 +69,8 @@ class Sampler():
 
 
     @torch.no_grad()
-    def p_sample(self, model, seqs, x_raw, t, t_index, coord_mask, atoms_mask, fixed, x_start):
-        # x = x_raw.x * coord_mask # remove the mask from the input
-        x = x_raw.x
+    def p_sample(self, model, seqs, x_raw, t, t_index, coord_mask, atoms_mask):
+        x = x_raw.x * coord_mask
         betas_t = self.extract(self.betas, t, x.shape)
         sqrt_one_minus_alphas_cumprod_t = self.extract(
             self.sqrt_one_minus_alphas_cumprod, t, x.shape
@@ -80,27 +79,21 @@ class Sampler():
         
         # Equation 11 in the paper
         # Use our model (noise predictor) to predict the mean
-        # model_mean = sqrt_recip_alphas_t * (
-        #     x - betas_t * model(x_raw, seqs, t)*coord_mask / sqrt_one_minus_alphas_cumprod_t
-        # )
         model_mean = sqrt_recip_alphas_t * (
-            x - betas_t * model(x_raw, seqs, t) / sqrt_one_minus_alphas_cumprod_t
+            x - betas_t * model(x_raw, seqs, t)*coord_mask / sqrt_one_minus_alphas_cumprod_t
         )
 
         if t_index == 0:
-            # x_raw.x = model_mean * coord_mask + x_raw.x * atoms_mask
-            x_raw.x = model_mean + x_raw.x * atoms_mask
-            x_raw.x = self.add_fixed(x_raw.x, fixed, t, t_index, x_start)
+            x_raw.x = model_mean * coord_mask + x_raw.x * atoms_mask
             return x_raw.x
         else:
             posterior_variance_t = self.extract(self.posterior_variance, t, x.shape)
             noise = torch.randn_like(x)
             # Algorithm 2 line 4:
             out = model_mean + torch.sqrt(posterior_variance_t) * noise
-            out = self.add_fixed(out, fixed, t, t_index, x_start)
-            # x_raw.x = out * coord_mask + x_raw.x * atoms_mask
-            x_raw.x = out + x_raw.x * atoms_mask
+            x_raw.x = out * coord_mask + x_raw.x * atoms_mask
             return x_raw.x
+
 
     def add_fixed(self, raw_x, fixed, t, t_index, x_start):
         if torch.any(fixed) and t_index > 0:
@@ -109,49 +102,33 @@ class Sampler():
         if torch.any(fixed) and t_index == 0:
             raw_x[fixed] = x_start[fixed]
         return raw_x
-
-    # Algorithm 2 (including returning all images)
+ 
+ 
+    # Algorithm 2
     @torch.no_grad()
-    def p_sample_loop(self, model, seqs, shape, context_mols, mask=None):
+    def p_sample_loop(self, model, seqs, shape, context_mols):
         device = next(model.parameters()).device
 
         b = shape[0]
         # start from pure noise (for each example in the batch)
         coord_mask = torch.ones_like(context_mols.x)
         coord_mask[:, 3:] = 0
-
-        if mask is not None:
-            fixed = torch.where(mask == False)[0]
-        else:
-            fixed = torch.tensor([], device=device)
-        
         atoms_mask = 1 - coord_mask
-
         noise = torch.rand_like(context_mols.x, device=device)
         denoised = []
         
-        context_mol_coords_copy = context_mols.x
         context_mols.x = noise * coord_mask + context_mols.x * atoms_mask
         for i in tqdm(reversed(range(0, self.timesteps)), desc='sampling loop time step', total=self.timesteps):
-            context_mols.x = self.p_sample(
-                                        model,
-                                        seqs,
-                                        context_mols,
-                                        torch.full((b,), i, device=device, dtype=torch.long),
-                                        i,
-                                        coord_mask,
-                                        atoms_mask,
-                                        fixed=fixed,
-                                        x_start=context_mol_coords_copy)
-            assert torch.all(torch.isfinite(context_mols.x))
+            context_mols.x = self.p_sample(model, seqs, context_mols, torch.full((b,), i, device=device, dtype=torch.long), i, coord_mask, atoms_mask)
             # denoised.append(context_mols.clone().cpu())
         denoised.append(context_mols.clone().cpu())
         return denoised
 
 
+
     @torch.no_grad()
-    def sample(self, model, seqs, context_mols, mask=None):
-        return self.p_sample_loop(model, seqs, shape=context_mols.x.shape, context_mols=context_mols, mask=mask)
+    def sample(self, model, seqs, context_mols):
+        return self.p_sample_loop(model, seqs, shape=context_mols.x.shape, context_mols=context_mols)
 
 
     # forward diffusion (using the nice property)
