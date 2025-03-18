@@ -52,7 +52,7 @@ pip install flash-attn==2.3.2
 
 #### Download the pre-trained model
 ```
-wget https://zenodo.org/records/13750967/files/model_epoch_800.tar.gz?download=1
+wget https://zenodo.org/records/13750967/files/model_epoch_800.tar.gz?download=1 -O model_epoch_800.tar.gz
 tar -xvzf model_epoch_800.tar.gz && mv model_800.h5 save/grapharna/
 ```
 
