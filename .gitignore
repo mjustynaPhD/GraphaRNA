@@ -6,10 +6,9 @@ save/*
 tests/test_output/*
 samples/*
 user_inputs/*
-
+src/GraphaRNA.egg-info/*
 # files
 *.pyc
-rna_gnn.egg-info/*
 *.out
 *.pdb
 *.csv

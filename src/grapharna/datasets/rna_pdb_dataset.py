@@ -74,7 +74,8 @@ class RNAPDBDataset(Dataset):
         residues = torch.nn.functional.one_hot(torch.tensor(residues).to(torch.int64), num_classes=4).float()
 
         if c2 is not None:
-            data_x = torch.cat((atoms_pos, atoms_types, residues, c4_primes, c2, c4_or_c6, n1_or_n9, coords_mask), dim=1)
+            # data_x = torch.cat((atoms_pos, atoms_types, residues, c4_primes, c2, c4_or_c6, n1_or_n9, coords_mask), dim=1)
+            data_x = torch.cat((atoms_pos, atoms_types, residues, c4_primes, c2, c4_or_c6, n1_or_n9), dim=1)
         else:
             data_x = torch.cat((atoms_pos, atoms_types, residues, c4_primes, coords_mask), dim=1)
         edges = torch.tensor(sample['edges'])

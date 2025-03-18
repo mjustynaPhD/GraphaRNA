@@ -31,6 +31,13 @@ pip install .
 
 Ensure you have **Python 3.10+** and **PyTorch 2.3.0+** installed, along with **PyTorch Geometric** for handling the graph components.
 
+##### Some additional that can fail at automatic installation and might need to be installed manually:
+
+```
+pip install torch-cluster torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-2.3.0+cu121.html
+```
+
+
 #### Install RiNALMo
 
 RiNALMo is a key component of GraphaRNA. To install that follow the instruction:
@@ -57,18 +64,18 @@ First line is the name of the sequence, starting with `>`. Next line, is nucleot
 (), [], {}, <>, Aa, Bb, Cc, Dd
 ```
 
-#### Prepare the file.
-Run command:
-```
-python prepare_user_input.py --input-dir=user_inputs
-```
-
-The pickle files will be created in the directory `data/user_inputs`.
-
 #### Run model
-Then, to inference all structures from `data/user_inputs` directory run:
+
 ```
-grapharna --seed=0 --batch_size=32 --dim=256 --n_layer=6 --timesteps=5000 --knns=20
+grapharna --input=user_inputs/tsh_helix.dotseq
+```
+
+Your output will be created in directory `samples/grapharna`
+
+For convertion of the coarse-grained representation to full atom representation you can use the [Arena](https://github.com/pylelab/Arena).To run the Arena you need to run the following command:
+
+```
+Arena --input=samples/grapharna/tsh_helix.pdb --output=samples/grapharna/tsh_helix_AA.pdb
 ```
 
 ## Training

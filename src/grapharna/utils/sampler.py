@@ -70,7 +70,8 @@ class Sampler():
 
     @torch.no_grad()
     def p_sample(self, model, seqs, x_raw, t, t_index, coord_mask, atoms_mask, fixed, x_start):
-        x = x_raw.x * coord_mask
+        # x = x_raw.x * coord_mask # remove the mask from the input
+        x = x_raw.x
         betas_t = self.extract(self.betas, t, x.shape)
         sqrt_one_minus_alphas_cumprod_t = self.extract(
             self.sqrt_one_minus_alphas_cumprod, t, x.shape
@@ -79,12 +80,16 @@ class Sampler():
         
         # Equation 11 in the paper
         # Use our model (noise predictor) to predict the mean
+        # model_mean = sqrt_recip_alphas_t * (
+        #     x - betas_t * model(x_raw, seqs, t)*coord_mask / sqrt_one_minus_alphas_cumprod_t
+        # )
         model_mean = sqrt_recip_alphas_t * (
-            x - betas_t * model(x_raw, seqs, t)*coord_mask / sqrt_one_minus_alphas_cumprod_t
+            x - betas_t * model(x_raw, seqs, t) / sqrt_one_minus_alphas_cumprod_t
         )
 
         if t_index == 0:
-            x_raw.x = model_mean * coord_mask + x_raw.x * atoms_mask
+            # x_raw.x = model_mean * coord_mask + x_raw.x * atoms_mask
+            x_raw.x = model_mean + x_raw.x * atoms_mask
             x_raw.x = self.add_fixed(x_raw.x, fixed, t, t_index, x_start)
             return x_raw.x
         else:
@@ -93,7 +98,8 @@ class Sampler():
             # Algorithm 2 line 4:
             out = model_mean + torch.sqrt(posterior_variance_t) * noise
             out = self.add_fixed(out, fixed, t, t_index, x_start)
-            x_raw.x = out * coord_mask + x_raw.x * atoms_mask
+            # x_raw.x = out * coord_mask + x_raw.x * atoms_mask
+            x_raw.x = out + x_raw.x * atoms_mask
             return x_raw.x
 
     def add_fixed(self, raw_x, fixed, t, t_index, x_start):
@@ -123,12 +129,6 @@ class Sampler():
 
         noise = torch.rand_like(context_mols.x, device=device)
         denoised = []
-        # at first step we start from random noise everywhere.
-        # we should use the same noise scheduler as in the training
-        # in places where the noise should remain we should "do it manually" just by generating original image * beta + noise * (1-beta) * mask
-        # it should be repeated in each iteration.
-        # we subtract the predicted noise from the starting point where mask is True
-
         
         context_mol_coords_copy = context_mols.x
         context_mols.x = noise * coord_mask + context_mols.x * atoms_mask

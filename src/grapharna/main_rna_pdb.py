@@ -49,15 +49,15 @@ def validation(model, loader, device, sampler, args):
 def sample(model, loader, device, sampler, epoch, args, num_batches=None, exp_name: str = "run", ):
     model.eval()
     s = SampleToPDB()
-    mask_sampler = SamplingMask(args.sampling_resids, device=device)
+    # mask_sampler = SamplingMask(args.sampling_resids, device=device)
     s_counter = 0
 
     with torch.no_grad():
         for data, name, seqs in loader:
             print(f"Sample batch {s_counter}")
             data = data.to(device)
-            sampling_mask = mask_sampler.get_mask(data, name)
-            samples = sampler.sample(model, seqs, data, mask=sampling_mask)[-1]
+            # sampling_mask = mask_sampler.get_mask(data, name)
+            samples = sampler.sample(model, seqs, data, mask=None)[-1]
             s.to('pdb', samples, f"./samples/{exp_name}/{epoch}", name)
             # s.to('xyz', samples, f"./samples/{exp_name}/{epoch}", name)
             # s.to('trafl', samples, f"./samples/{exp_name}/{epoch}", name)
