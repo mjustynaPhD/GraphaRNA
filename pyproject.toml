@@ -10,11 +10,12 @@ authors = [{name = "Marek Justyna", email = "mjustyna@cs.put.poznan.pl"}]
 dependencies = [
     "torch>=2.3.0",
     "torch-geometric>=2.5.3",
-    "numpy>=1.26.0",
+    "numpy==1.26.4",
     "scikit-learn>=1.4.0",
     "pandas",
     "scipy",
     "biopython>=1.83",
+    "rnapolis==0.3.11",
     "wandb",
     "torch-sparse>=0.6.18",
     "torch-scatter>=2.1.2",
