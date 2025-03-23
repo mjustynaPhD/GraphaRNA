@@ -70,7 +70,10 @@ class SequenceStructureModule(nn.Module):
         x = torch.cat((seq_emb, x_struct), dim=1)
         attn_mask = torch.zeros(x.size(0), x.size(0), device=x.device)
         attn_pos = torch.where(batch[:, None] == batch[None, :])
-        attn_mask[attn_pos] = 1
+        if batch.sum() == 0:
+            attn_mask[attn_pos] = 0
+        else:
+            attn_mask[attn_pos] = 1
         out = self.transformer_encoder(x, mask=attn_mask.bool())
         return out
 
@@ -270,7 +273,6 @@ class PAMNet(nn.Module):
         edge_l_attr = self.merge_edge_attr(data, (edge_index_l.size(1),3))
         edge_index_l = torch.cat((edge_index_l, data.edge_index), dim=1)
         edge_index_l, edge_l_attr, dist_l = self.get_edge_info(edge_index_l, edge_attr=edge_l_attr, pos=pos)
-        
         idx_i, idx_j, idx_k, idx_kj, idx_ji, idx_i_pair, idx_j1_pair, idx_j2_pair, idx_jj_pair, idx_ji_pair = self.indices(edge_index_l, num_nodes=x.size(0))
         
         # Compute two-hop angles in local layer
@@ -294,7 +296,14 @@ class PAMNet(nn.Module):
         sbf1 = self.sbf(dist_l, angle1, idx_jj_pair)
         sbf2 = self.sbf(dist_l, angle2, idx_kj)
         
-
+        if torch.isnan(dist_l).any():
+            print("NaN in dist_l")
+            print(dist_l)
+            raise ValueError("NaN in dist_l")
+        if torch.isnan(rbf_l).any():
+            print("NaN in rbf_l before concatenation")
+            raise ValueError("NaN in rbf_l before concatenation")
+        
         rbf_l = torch.cat((rbf_l, edge_l_attr), dim=1)
         rbf_g = torch.cat((rbf_g, edge_g_attr), dim=1)
         edge_attr_rbf_l = self.mlp_rbf_l(rbf_l)
@@ -317,7 +326,6 @@ class PAMNet(nn.Module):
                                                     idx_kj, idx_ji, idx_jj_pair, idx_ji_pair, edge_index_l)
             out_local.append(out_l)
             att_score_local.append(att_score_l)
-        
         # Fusion Module
         att_score = torch.cat((torch.cat(att_score_global, 0), torch.cat(att_score_local, 0)), -1)
         # att_score = torch.cat(att_score_local, 0)
