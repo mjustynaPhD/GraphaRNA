@@ -1,7 +1,7 @@
 import pytest
 from torch_geometric.loader import DataLoader
-from datasets import RNAPDBDataset
-from utils import SampleToPDB
+from grapharna.datasets import RNAPDBDataset
+from grapharna.utils import SampleToPDB
 
 class TestSampleToPDB:
     data_path = "data/7QR4/"
