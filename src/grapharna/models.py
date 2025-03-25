@@ -68,12 +68,9 @@ class SequenceStructureModule(nn.Module):
 
     def forward(self, seq_emb, x_struct, batch):
         x = torch.cat((seq_emb, x_struct), dim=1)
-        attn_mask = torch.zeros(x.size(0), x.size(0), device=x.device)
+        attn_mask = torch.ones(x.size(0), x.size(0), device=x.device) # Default: block all
         attn_pos = torch.where(batch[:, None] == batch[None, :])
-        if batch.sum() == 0:
-            attn_mask[attn_pos] = 0
-        else:
-            attn_mask[attn_pos] = 1
+        attn_mask[attn_pos] = 0 # Allow attention within same structure
         out = self.transformer_encoder(x, mask=attn_mask.bool())
         return out
 
