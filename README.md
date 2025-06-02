@@ -47,7 +47,13 @@ cd RiNALMo
 pip install .
 pip install flash-attn==2.3.2
 
-**Note**: To install flash-attn you need to run install it on GPU machine:
+**Note**: To install flash-attn you need to install it on GPU machine
+If you are using a CPU machine or you don't want to use flash attention you can install RiNALMo without it:
+
+git clone https://github.com/lbcb-sci/RiNALMo
+cd RiNALMo
+git checkout non_flash
+pip install .
 ```
 
 #### Download the pre-trained model
