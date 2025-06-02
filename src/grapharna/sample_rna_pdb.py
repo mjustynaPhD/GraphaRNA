@@ -48,8 +48,8 @@ def main():
     print('Seed:', args.seed)
     set_seed(args.seed)
     # Load the model
-    exp_name = "grapharna"
-    epoch = 800
+    exp_name = "ancient-sky-36"
+    epoch = 600
     model_path = f"save/{exp_name}/model_{epoch}.h5"
     
     if args.input is None and args.dataset is None:
@@ -86,12 +86,12 @@ def main():
                     transformer_blocks=args.blocks
                     )
     
-
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = PAMNet(config)
-    model.load_state_dict(torch.load(model_path))
+    model.load_state_dict(torch.load(model_path, map_location=device))
     print("Model loaded!")
     model.eval()
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    
     print("Device: ", device)
     model.to(device)
     ds = RNAPDBDataset("data/user_inputs/", name=dir_name, mode='coarse-grain')
