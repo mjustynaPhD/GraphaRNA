@@ -48,8 +48,8 @@ def main():
     print('Seed:', args.seed)
     set_seed(args.seed)
     # Load the model
-    exp_name = "ancient-sky-36"
-    epoch = 600
+    exp_name = "grapharna"
+    epoch = 800
     model_path = f"save/{exp_name}/model_{epoch}.h5"
     
     if args.input is None and args.dataset is None:
