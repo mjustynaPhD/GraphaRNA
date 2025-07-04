@@ -10,13 +10,23 @@ class RNAPDBDataset(Dataset):
                  path: str,
                  name: str,
                  file_extension: str='.pkl',
-                 mode: str='backbone'
+                 mode: str='backbone',
+                 all_eval_batches:int = 1,
+                 eval_batch_idx:int = 0
                  ):
         super(RNAPDBDataset, self).__init__(path)
         self.path = os.path.join(path, name)
         self.files = sorted(os.listdir(self.path))
         self.files = os.listdir(self.path)
         self.files = [f for f in self.files if f.endswith(file_extension)]
+        all_len = len(self.files)
+        if all_eval_batches > 1:
+            single_batch_len = all_len // all_eval_batches
+            start_idx = eval_batch_idx * single_batch_len
+            end_idx = start_idx + single_batch_len
+            self.files = self.files[start_idx:end_idx]
+        print(f"Processing {len(self.files)} from batch index {eval_batch_idx}")
+
         self.to_tensor = torch.tensor
         if mode not in ['backbone', 'all', 'coarse-grain']:
             raise ValueError(f"Invalid mode: {mode}")
@@ -40,6 +50,10 @@ class RNAPDBDataset(Dataset):
         file = self.files[idx]
         path = os.path.join(self.path, file)
         sample = self.load_pickle(path)
+
+        if 'coords_updated' not in sample:
+            sample['coords_updated'] = [True] * len(sample['pos'])
+
         atoms_types = self.to_tensor(sample['atoms']).unsqueeze(1).float()
         atoms_pos = self.to_tensor(sample['pos']).float()
         atoms_pos_mean = atoms_pos[sample['coords_updated']].mean(dim=0)

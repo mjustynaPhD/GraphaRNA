@@ -99,7 +99,7 @@ def main(world_size):
 
     if args.wandb and rank == 0:
         wandb.login()
-        run = wandb.init(project='RNA-GNN-Full-RNAs', config=args)
+        run = wandb.init(project='RNA-GNN-ablation', config=args)
         exp_name = run.name
     else:
         exp_name = "test"
@@ -138,7 +138,16 @@ def main(world_size):
     model = PAMNet(config).to(device)
     # load state dict of a pre-trained model
     if args.load:
-        model.load_state_dict(torch.load("save/twilight-shadow-129/model_200.h5"))
+        state_dict = torch.load("save/grapharna/model_800.h5", map_location='cpu')
+        model_state = model.state_dict()
+        filtered_state = {k: v for k, v in state_dict.items() 
+                  if k in model_state and v.shape == model_state[k].shape}
+        # model.load_state_dict(torch.load("save/grapharna/model_800.h5"), strict=False)
+        model.load_state_dict(filtered_state, strict=False)
+        # freeze all layers except the OneHotSequenceModule
+        for name, param in model.named_parameters():
+            if 'sequence_module' not in name:
+                param.requires_grad = False
 
     model = DDP(model, device_ids=[rank], find_unused_parameters=True)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)

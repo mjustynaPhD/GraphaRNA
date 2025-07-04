@@ -59,6 +59,29 @@ class SequenceModule(nn.Module):
         # out = out + outputs["representation"]
         out = out.reshape((-1, out.size(2)))
         return out[nt_positions]
+    
+class OneHotSequenceModule(nn.Module):
+    def __init__(self, dim):
+        super(OneHotSequenceModule, self).__init__()
+        self.dim = dim
+        self.out_embedding = nn.Linear(4, dim, bias=False)
+        self.emb_act = nn.ReLU()
+        self.base_to_idx = {'A': 0, 'C': 1, 'G': 2, 'U': 3}
+
+    def forward(self, seqs:str, device):
+        indexed_seqs = []
+        for seq in seqs:
+            indexed = [self.base_to_idx[base] for base in seq]
+            indexed_seqs.append(indexed)
+        
+        flat_seqs = [item for sublist in indexed_seqs for item in sublist]
+        tokens = torch.tensor(flat_seqs, dtype=torch.int64, device=device)  # shape: [B, L]
+
+        # One-hot encode
+        one_hot = F.one_hot(tokens, num_classes=4).float()  # shape: [B, L, 4]
+        out = self.out_embedding(one_hot)
+        out = self.emb_act(out)
+        return out
 
 class SequenceStructureModule(nn.Module):
     def __init__(self, dim, n_layers:int=6, nhead:int=8):
@@ -97,7 +120,8 @@ class PAMNet(nn.Module):
         radial_bessels = 16
         # self.attn = nn.MultiheadAttention(self.dim + self.time_dim, num_heads=4)
 
-        self.sequence_module = SequenceModule(self.seq_emb_dim)
+        # self.sequence_module = SequenceModule(self.seq_emb_dim)
+        self.sequence_module = OneHotSequenceModule(self.seq_emb_dim)
         self.seq_struct_module = SequenceStructureModule(self.seq_emb_dim + self.dim, n_layers=self.blocks, nhead=8)
 
         self.rbf_g = BesselBasisLayer(radial_bessels, self.cutoff_g, envelope_exponent)
