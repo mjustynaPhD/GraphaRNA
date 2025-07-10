@@ -72,7 +72,10 @@ class BesselBasisLayer(torch.nn.Module):
 
     def forward(self, dist):
         dist = dist.unsqueeze(-1) / self.cutoff
-        return self.envelope(dist) * (self.freq * dist).sin()
+        dist = torch.clamp(dist, min=1e-6, max=1e2)
+        sin_arg = torch.clamp(self.freq * dist, min=-10.0, max=10.0)
+        return self.envelope(dist) * sin_arg
+        # return self.envelope(dist) * (self.freq * dist).sin()
 
 
 class SphericalBasisLayer(torch.nn.Module):
@@ -105,6 +108,7 @@ class SphericalBasisLayer(torch.nn.Module):
 
     def forward(self, dist, angle, idx_kj):
         dist = dist / self.cutoff
+        dist = torch.clamp(dist, min=1e-6, max=1e2)
         rbf = torch.stack([f(dist) for f in self.bessel_funcs], dim=1)
         rbf = self.envelope(dist).unsqueeze(-1) * rbf
 

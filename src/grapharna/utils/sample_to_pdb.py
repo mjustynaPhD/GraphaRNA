@@ -102,12 +102,8 @@ class SampleToPDB():
     def write_pdb(self, x, path, name):
         name = name.replace(".pdb", "").replace(".cif", "")
         atoms = self.get_atoms_pos_and_types(x)
-
-        try:
-            structure = self.create_structure(atoms, name)
-        except AssertionError as e:
-            print("Cannot save molecules with missing P atom.")
-            return
+    
+        structure = self.create_structure(atoms, name)
         
         name = name + '.pdb' if not name.endswith('.pdb') else name
         # Save the structure as a PDB file
