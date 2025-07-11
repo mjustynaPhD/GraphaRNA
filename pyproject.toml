@@ -20,7 +20,6 @@ dependencies = [
     "torch-sparse==0.6.18",
     "torch-scatter==2.1.2",
     "torch-cluster==1.6.3",
-    "flash-attn==2.3.2"
 ]
 requires-python = ">=3.10"
 

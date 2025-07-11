@@ -288,9 +288,6 @@ def construct_graphs(seq_dir, pdbs_dir, save_dir, save_name, file_3d_type:str=".
         except IndexError:
             print("Error reading dotbracket", rna_file)
             continue
-        except ValueError as e:
-            print(f"ValueError in reading dotbracket for {rna_file}: {e}")
-            continue
 
         if not seq_segments:
             print("Error reading sequence", rna_file)
@@ -368,11 +365,11 @@ def main():
     # seq_dir = os.path.join(data_dir, "seqs")
     # pdbs_dir = os.path.join(data_dir, "pdbs")
 
-    data_dir = "/home/mjustyna/data/rna_benchmark/"
+    data_dir = "/home/mjustyna/data/eval_examples/"
     seq_dir = None
-    pdbs_dir = os.path.join(data_dir, "motif")
-    save_dir = os.path.join(".", "data", "rna_benchmark")
-    construct_graphs(seq_dir, pdbs_dir, save_dir, "all", file_3d_type='.pdb', extended_dotbracket=extended_dotbracket, sampling=False)
+    pdbs_dir = os.path.join(data_dir, "5_segment")
+    save_dir = os.path.join(".", "data", "eval-pdb")
+    construct_graphs(seq_dir, pdbs_dir, save_dir, "5_segment", file_3d_type='.pdb', extended_dotbracket=extended_dotbracket, sampling=False)
     
     # data_dir = "/home/mjustyna/data/"
     # seq_dir = os.path.join(data_dir, "sim_desc")

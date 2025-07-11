@@ -1,7 +1,7 @@
 #!/usr/bin/bash -i
 #SBATCH -n 1
 #SBATCH -c 64
-#SBATCH -p hgx
+#SBATCH -p proxima
 #SBATCH --gres=gpu:04
 #SBATCH -t 168:00:00
 
