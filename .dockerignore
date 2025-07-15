@@ -1,0 +1,39 @@
+# Python cache / build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+*.db
+
+# Virtual environments
+venv/
+.env
+
+# Git
+.git/
+.gitignore
+
+# VSCode and IDEs
+.vscode/
+.idea/
+
+# Docker itself
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Logs and temp
+*.log
+*.tmp
+
+# Outputs / checkpoints
+user_inputs/
+output/
+save/
+model-overview.png
