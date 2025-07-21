@@ -138,7 +138,7 @@ def main(world_size):
     model = PAMNet(config).to(device)
     # load state dict of a pre-trained model
     if args.load:
-        model.load_state_dict(torch.load("save/twilight-shadow-129/model_200.h5"))
+        model.load_state_dict(torch.load("save/ruby-mountain-45/model_400.h5"))
 
     model = DDP(model, device_ids=[rank], find_unused_parameters=True)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)

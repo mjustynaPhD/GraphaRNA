@@ -49,8 +49,8 @@ def main():
     print('Seed:', args.seed)
     set_seed(args.seed)
     # Load the model
-    exp_name = "bright-jazz-2"
-    epoch = 80
+    exp_name = "fragrant-pyramid-40"
+    epoch = 800
     model_path = f"save/{exp_name}/model_{epoch}.h5"
 
     config = Config(dataset=args.dataset,

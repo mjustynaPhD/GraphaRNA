@@ -12,6 +12,7 @@ from Bio import BiopythonWarning
 from pymol import cmd
 import barnaba as bb
 warnings.simplefilter('ignore', BiopythonWarning)
+import subprocess
 
 from rnapolis.annotator import extract_secondary_structure
 from rnapolis.parser import read_3d_structure
@@ -24,6 +25,7 @@ def parse_args():
     args.add_argument('--output-name', type=str, default="rmsd.csv", help='Name of the output file')
     args.add_argument('--sim_rna', type=str, default=None, help='Path to the simRNA executable')
     args.add_argument('--arena_path', type=str, default=None, help='Path to the arena executable')
+    args.add_argument("--lddt-logs", type=str, default='lddt', help="Path to the lDDT logs directory")
     args.add_argument('--overwrite', action='store_true', help='Overwrite existing files')
     return args.parse_args()
 
@@ -75,7 +77,55 @@ def get_inf(s_pred, s_gt):
     inf = math.sqrt(ppv * sty)
     return inf
 
-def superimpose_pdbs(trafl_path, targets_path, out_postfix='-000001_AA.pdb', method:str='pymol'):
+def get_tmscore_and_gdts(trafl_path, targets_path, pdb, pdb_name):
+    # run system command and store the output
+    output = subprocess.run(
+        f"TMscore {trafl_path}/{pdb} {targets_path}/{pdb_name}",
+        shell=True,
+        capture_output=True,
+        text=True
+    )
+    tmscore, gdts = filter_tmscore_output(output.stdout)
+    return tmscore, gdts
+
+def filter_tmscore_output(output):
+    lines = output.split('\n')
+    tmscore = None
+    gdts = None
+    for line in lines:
+        if line.startswith('TM-score'):
+            tmscore = line
+        if line.startswith('GDT-TS-score'):
+            gdts = line
+
+    if tmscore is not None:
+        tmscore = float(tmscore.split()[2])
+    else:
+        tmscore = np.nan
+    if gdts is not None:
+        gdts = float(gdts.split()[1])
+    else:
+        gdts = np.nan
+    return tmscore, gdts
+
+def get_lddt(pred_pdb, ref_pdb, raw_pdb, lddt_logs):
+    raw_pdb = raw_pdb.replace('.pdb', '')
+    if not os.path.exists(lddt_logs):
+        os.makedirs(lddt_logs)
+    out_json = f"{lddt_logs}/{raw_pdb}_out.json"
+    if not os.path.exists(out_json):
+        lddt_command = f"ost compare-structures --bb-lddt -o {out_json} -m {pred_pdb} -r {ref_pdb}"
+        # just run the command and don't capture the output
+        output = subprocess.run(lddt_command, shell=True, capture_output=True, text=True)
+    get_output_cmd = f'cat {out_json} | grep "bb_lddt" | head -n 1'
+    lddt_output = subprocess.run(get_output_cmd, shell=True, capture_output=True, text=True)
+    if lddt_output.stderr:
+        print(f"Error in getting lDDT output: {lddt_output.stderr}")
+        return np.nan
+    lddt_value = lddt_output.stdout.split(":")[1].strip().replace(',', '')
+    return float(lddt_value) if lddt_value else np.nan    
+
+def superimpose_pdbs(trafl_path, targets_path, out_postfix='-000001_AA.pdb', method:str='pymol', lddt_logs:str='lddt'):
     pdbs = os.listdir(trafl_path)
     pdbs = [pdb for pdb in pdbs if pdb.endswith(out_postfix)]
     outs = []
@@ -88,7 +138,7 @@ def superimpose_pdbs(trafl_path, targets_path, out_postfix='-000001_AA.pdb', met
 
             try:
                 inf = get_inf(pred_2d_structure, ref_2d_structure)
-            except:
+            except Exception as e:
                 print(f"Skipping {pdb} as the INF calculation failed")
                 continue
             if method == 'pymol':
@@ -97,11 +147,23 @@ def superimpose_pdbs(trafl_path, targets_path, out_postfix='-000001_AA.pdb', met
                 rms = align_biopython(trafl_path, targets_path, pdb, pdb_name)
             try:
                 ermsd = bb.ermsd(f"{targets_path}/{pdb_name}", f"{trafl_path}/{pdb}")[0]
-            except:
+            except Exception as e:
                 print(f"Skipping {pdb} as the eRMSD calculation failed")
                 ermsd = np.nan
-            outs.append((pdb, rms, round(ermsd, 3), round(inf, 3)))
-            
+
+            try:
+                tmscore, gdts = get_tmscore_and_gdts(trafl_path, targets_path, pdb, pdb_name)
+            except Exception as e:
+                print(f"Skipping {pdb} as the TM-score calculation failed")
+                tmscore, gdts = np.nan, np.nan
+
+            try:
+                lddt = get_lddt(f"{trafl_path}/{pdb}", f"{targets_path}/{pdb_name}", pdb, lddt_logs)
+            except Exception as e:
+                print(f"Skipping {pdb} as the lDDT calculation failed")
+                lddt = np.nan
+            outs.append((pdb, rms, round(ermsd, 3), round(inf, 3), tmscore, gdts, lddt))
+
         else:
             print(f"Skipping {pdb} as the target pdb file: {targets_path}/{pdb_name} does not exist")
     return outs
@@ -120,7 +182,7 @@ def align_biopython(trafl_path, targets_path, pdb, pdb_name):
         sup.set_atoms(ref_atoms, atoms) # if there is a missing P atom in some chain, then is should be removed from prediction to do superposition
         sup.apply(model.get_atoms())
         
-    except:
+    except Exception as e:
         print(f"Skipping {pdb} as the superimposition failed")
         
     return round(sup.rms, 3)
@@ -142,15 +204,19 @@ def main():
     elif args.arena_path is not None:
         generate_pdbs_AA(args.preds_path, args.arena_path, args.overwrite, out_postfix='_AA.pdb')
     print("Superimposing...")
-    outs = superimpose_pdbs(args.preds_path, args.targets_path , out_postfix="_AA.pdb", method="pymol")
+    outs = superimpose_pdbs(args.preds_path, args.targets_path , out_postfix="_AA.pdb", method="pymol", lddt_logs=args.lddt_logs)
     print("Results:")
-    df = pd.DataFrame(outs, columns=['pdb', 'rms', 'ermsd', 'inf'])
+    df = pd.DataFrame(outs, columns=['pdb', 'rms', 'ermsd', 'inf', 'tmscore', 'gdts', 'lddt'])
     # sort df by rms column
     df = df.sort_values(by='rms', ascending=True)
     print(df.head())
     print(f"Mean RMSD: {df['rms'].mean()}, Std: {df['rms'].std()}, Median RMSD: {df['rms'].median()}")
     print(f"Mean eRMSD: {df['ermsd'].mean()}, Std: {df['ermsd'].std()}, Median eRMSD: {df['ermsd'].median()}")
     print(f"Mean INF: {df['inf'].mean()}, Std: {df['inf'].std()}, Median INF: {df['inf'].median()}")
+    print(f"Mean TM-score: {df['tmscore'].mean()}, Std: {df['tmscore'].std()}, Median TM-score: {df['tmscore'].median()}")
+    print(f"Mean GDT-TS: {df['gdts'].mean()}, Std: {df['gdts'].std()}, Median GDT-TS: {df['gdts'].median()}")
+    print(f"Mean lDDT: {df['lddt'].mean()}, Std: {df['lddt'].std()}, Median lDDT: {df['lddt'].median()}")
+    print(f"Number of samples: {len(df)}")
     df.to_csv(args.output_name, index=False)
     print(f"Results saved to {args.output_name}")
     pass
