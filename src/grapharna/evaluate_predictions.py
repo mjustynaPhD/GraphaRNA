@@ -54,11 +54,34 @@ def generate_pdbs_AA(samples_path, arena_path, overwrite=False, out_postfix='_AA
             continue
         os.system(f"./run_ARENA_pdb_to_aa.sh {arena_path} {samples_path}/{s} {samples_path}/{out_name}")
 
-def extract_2d_structure(pdb_path):
+def merge_nwc(extd_s2d:str):
+    lines = extd_s2d.split('\n')
+    nwc = []
+    nwc_fragment = []
+    for line in lines[1:]:
+        if line.strip().startswith('>strand_'):
+            nwc.append("".join(nwc_fragment))
+            continue
+        intr_type, s = line.split(' ')
+        if intr_type == 'cWW' or intr_type == 'seq':
+            nwc_fragment = ['.'] * len(s)
+            continue
+        for i, c in enumerate(s):
+            if c != '.':
+                nwc_fragment[i] = c
+    nwc.append("".join(nwc_fragment))  # append the last fragment
+
+    return "".join(nwc)
+
+def extract_2d_structure(pdb_path, nc=False):
     with open(pdb_path, 'r') as f:
         structure3d = read_3d_structure(f, 1)
         structure2d = extract_secondary_structure(structure3d, 1)
-    s2d = structure2d.dotBracket.split('>strand')
+    if nc:
+        s2d = merge_nwc(structure2d.extendedDotBracket)
+        return s2d
+    else:
+        s2d = structure2d.dotBracket.split('>strand')
     if len(s2d) > 1:
         s2d = [s.strip().split('\n')[-1] for s in s2d]
         return "".join(s2d)
@@ -135,12 +158,19 @@ def superimpose_pdbs(trafl_path, targets_path, out_postfix='-000001_AA.pdb', met
         if os.path.exists(f"{targets_path}/{pdb_name}"):
             ref_2d_structure = extract_2d_structure(f"{targets_path}/{pdb_name}")
             pred_2d_structure = extract_2d_structure(f"{trafl_path}/{pdb}")
+            pred_nwc = extract_2d_structure(f"{trafl_path}/{pdb}", nc=True)
+            ref_nwc = extract_2d_structure(f"{targets_path}/{pdb_name}", nc=True)
 
             try:
                 inf = get_inf(pred_2d_structure, ref_2d_structure)
             except Exception as e:
                 print(f"Skipping {pdb} as the INF calculation failed")
                 continue
+            try:
+                inf_nwc = get_inf(pred_nwc, ref_nwc)
+            except Exception as e:
+                print(f"Skipping {pdb} as the INF calculation for NWC failed")
+                inf_nwc = np.nan
             if method == 'pymol':
                 rms = align_pymol(trafl_path, targets_path, pdb, pdb_name)
             elif method == 'biopython':
@@ -162,7 +192,7 @@ def superimpose_pdbs(trafl_path, targets_path, out_postfix='-000001_AA.pdb', met
             except Exception as e:
                 print(f"Skipping {pdb} as the lDDT calculation failed")
                 lddt = np.nan
-            outs.append((pdb, rms, round(ermsd, 3), round(inf, 3), tmscore, gdts, lddt))
+            outs.append((pdb, rms, round(ermsd, 3), round(inf, 3), round(inf_nwc, 3), tmscore, gdts, lddt))
 
         else:
             print(f"Skipping {pdb} as the target pdb file: {targets_path}/{pdb_name} does not exist")
@@ -206,13 +236,14 @@ def main():
     print("Superimposing...")
     outs = superimpose_pdbs(args.preds_path, args.targets_path , out_postfix="_AA.pdb", method="pymol", lddt_logs=args.lddt_logs)
     print("Results:")
-    df = pd.DataFrame(outs, columns=['pdb', 'rms', 'ermsd', 'inf', 'tmscore', 'gdts', 'lddt'])
+    df = pd.DataFrame(outs, columns=['pdb', 'rms', 'ermsd', 'inf', 'inf_nwc', 'tmscore', 'gdts', 'lddt'])
     # sort df by rms column
     df = df.sort_values(by='rms', ascending=True)
     print(df.head())
     print(f"Mean RMSD: {df['rms'].mean()}, Std: {df['rms'].std()}, Median RMSD: {df['rms'].median()}")
     print(f"Mean eRMSD: {df['ermsd'].mean()}, Std: {df['ermsd'].std()}, Median eRMSD: {df['ermsd'].median()}")
     print(f"Mean INF: {df['inf'].mean()}, Std: {df['inf'].std()}, Median INF: {df['inf'].median()}")
+    print(f"Mean INF NWC: {df['inf_nwc'].mean()}, Std: {df['inf_nwc'].std()}, Median INF NWC: {df['inf_nwc'].median()}")
     print(f"Mean TM-score: {df['tmscore'].mean()}, Std: {df['tmscore'].std()}, Median TM-score: {df['tmscore'].median()}")
     print(f"Mean GDT-TS: {df['gdts'].mean()}, Std: {df['gdts'].std()}, Median GDT-TS: {df['gdts'].median()}")
     print(f"Mean lDDT: {df['lddt'].mean()}, Std: {df['lddt'].std()}, Median lDDT: {df['lddt'].median()}")
