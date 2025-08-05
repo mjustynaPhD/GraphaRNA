@@ -90,6 +90,16 @@ For convertion of the coarse-grained representation to full atom representation 
 Arena --input=samples/grapharna/tsh_helix.pdb --output=samples/grapharna/tsh_helix_AA.pdb
 ```
 
+Alternatively you can also run docker imgae:
+```
+# Download docker image from Zenodo
+wget https://zenodo.org/records/16742296/files/grapharna.tar?download=1 -O grapharna.tar
+
+# Load it
+sudo docker load -i grapharna.tar
+sudo docker run -v $(pwd)/user_inputs/tsh_helix.dotseq:/app/sample/grapharna/tsh_helix.dotseq grapharna:latest grapharna --input=user_inputs/tsh_helix.dotseq
+```
+
 ## Training
 If you wish to run training follow the instruction below.
 
