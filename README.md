@@ -1,4 +1,4 @@
-# Graph Neural Network and Diffusion Model for Modeling RNA Interatomic Interactions
+# Graph Neural Network and Diffusion Model for Modeling RNA Interatomic Interactions [[Paper](https://academic.oup.com/bioinformatics/article/41/9/btaf515/8254448)]
 
 Welcome to the official repository of GraphaRNA, a novel approach for RNA 3D structure prediction based on **graph neural networks (GNNs)** and **denoising diffusion models**. Unlike traditional methods that rely heavily on multiple sequence alignment (MSA) and structural templates, GraphaRNA utilizes **local RNA descriptors**, making it particularly effective in scenarios where the data is limited and highly imbalanced.
 
@@ -136,5 +136,22 @@ The key arguments:
 * `arena_path` - path to the Arena. Arena is used to transform coarse-grained representation into full atom representation.
 
 ## Citation
+```
+@article{10.1093/bioinformatics/btaf515,
+    author = {Justyna, Marek and Zirbel, Craig and Antczak, Maciej and Szachniuk, Marta},
+    title = {Graph neural network and diffusion model for modeling RNA interatomic interactions},
+    journal = {Bioinformatics},
+    volume = {41},
+    number = {9},
+    pages = {btaf515},
+    year = {2025},
+    month = {09},
+    issn = {1367-4811},
+    doi = {10.1093/bioinformatics/btaf515},
+    url = {https://doi.org/10.1093/bioinformatics/btaf515},
+    eprint = {https://academic.oup.com/bioinformatics/article-pdf/41/9/btaf515/64274808/btaf515.pdf},
+}
+```
+
 ## License
 CC-BY 4.0
