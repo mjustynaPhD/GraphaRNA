@@ -1,6 +1,10 @@
+import multiprocessing
 import os
 import numpy as np
+# from tqdm import tqdm
+from p_tqdm import p_umap
 from tqdm import tqdm
+from functools import partial
 import pickle
 import Bio
 from Bio.PDB import PDBParser, MMCIFParser
@@ -237,6 +241,43 @@ def dot_to_bpseq(dot):
             bpseq.append((stack[DOT_CLOSINGS_MAP[x]].pop(), i))
     return bpseq
 
+def run_procedure( i, seq_dir, pdbs_dir, name_list, file_3d_type:str=".pdb", extended_dotbracket:bool=True, sampling:bool=False, save_dir_full=None):
+    name = name_list[i]
+    
+    if seq_dir is not None: # To remove
+        seq_path = os.path.join(seq_dir, name)
+        seq_segments = read_seq_segments(seq_path)
+        name = name.replace(".seq", file_3d_type)
+    else:
+        seq_path = None
+        seq_segments = None
+    
+    rna_file = os.path.join(pdbs_dir, name)
+    
+    # if rna_file exists, skip
+    if os.path.exists(os.path.join(save_dir_full, name.replace(file_3d_type, ".pkl"))):
+        return
+    if not os.path.exists(rna_file):
+        print("File not found", rna_file)
+        return
+    
+
+    try:
+        res_pairs, seq_segments = get_bpseq_pairs(rna_file, seq_path=seq_path, extended_dotbracket=extended_dotbracket)
+    except IndexError:
+        print("Error reading dotbracket", rna_file)
+        return
+
+    if not seq_segments:
+        print("Error reading sequence", rna_file)
+        return
+    elif len("".join(seq_segments)) > 500:
+        # print("Structure too large (>500 nts), skipping:", rna_file)
+        return
+
+    process_rna_file(rna_file, seq_segments, file_3d_type, sampling, save_dir_full, name, res_pairs)
+
+
 def construct_graphs(seq_dir, pdbs_dir, save_dir, save_name, file_3d_type:str=".pdb", extended_dotbracket:bool=True, sampling:bool=False):
     """
     
@@ -261,39 +302,59 @@ def construct_graphs(seq_dir, pdbs_dir, save_dir, save_name, file_3d_type:str=".
         name_list = [x for x in os.listdir(pdbs_dir)]
         name_list = [x for x in name_list if file_3d_type in x]
 
-    for i in tqdm(range(len(name_list))):
-        name = name_list[i]
+
+    max_processes = multiprocessing.cpu_count()
+    num_processes = max(1, min(8, max_processes, len(name_list)))
+    parallel = num_processes > 1
+
+    if parallel:
+        partial_fn = partial(run_procedure,
+                             seq_dir=seq_dir,
+                             pdbs_dir=pdbs_dir,
+                             name_list=name_list,
+                             file_3d_type=file_3d_type,
+                             extended_dotbracket=extended_dotbracket,
+                             sampling=sampling,
+                             save_dir_full=save_dir_full)
+        _ = p_umap(partial_fn, range(len(name_list)), num_cpus=num_processes)
+    else:
+        for i in tqdm(range(len(name_list))):
+            run_procedure(seq_dir, pdbs_dir, name_list, file_3d_type=file_3d_type, extended_dotbracket=extended_dotbracket, sampling=sampling, i=i, save_dir_full=save_dir_full)
+        # name = name_list[i]
         
         
-        if seq_dir is not None: # To remove
-            seq_path = os.path.join(seq_dir, name)
-            seq_segments = read_seq_segments(seq_path)
-            name = name.replace(".seq", file_3d_type)
-        else:
-            seq_path = None
-            seq_segments = None
+        # if seq_dir is not None: # To remove
+        #     seq_path = os.path.join(seq_dir, name)
+        #     seq_segments = read_seq_segments(seq_path)
+        #     name = name.replace(".seq", file_3d_type)
+        # else:
+        #     seq_path = None
+        #     seq_segments = None
         
-        rna_file = os.path.join(pdbs_dir, name)
+        # rna_file = os.path.join(pdbs_dir, name)
         
-        # if rna_file exists, skip
-        if os.path.exists(os.path.join(save_dir_full, name.replace(file_3d_type, ".pkl"))):
-            continue
-        if not os.path.exists(rna_file):
-            print("File not found", rna_file)
-            continue
+        # # if rna_file exists, skip
+        # if os.path.exists(os.path.join(save_dir_full, name.replace(file_3d_type, ".pkl"))):
+        #     continue
+        # if not os.path.exists(rna_file):
+        #     print("File not found", rna_file)
+        #     continue
         
 
-        try:
-            res_pairs, seq_segments = get_bpseq_pairs(rna_file, seq_path=seq_path, extended_dotbracket=extended_dotbracket)
-        except IndexError:
-            print("Error reading dotbracket", rna_file)
-            continue
+        # try:
+        #     res_pairs, seq_segments = get_bpseq_pairs(rna_file, seq_path=seq_path, extended_dotbracket=extended_dotbracket)
+        # except IndexError:
+        #     print("Error reading dotbracket", rna_file)
+        #     continue
 
-        if not seq_segments:
-            print("Error reading sequence", rna_file)
-            continue
+        # if not seq_segments:
+        #     print("Error reading sequence", rna_file)
+        #     continue
+        # elif len("".join(seq_segments)) > 500:
+        #     print("Structure too large (>500 nts), skipping:", rna_file)
+        #     continue
 
-        process_rna_file(rna_file, seq_segments, file_3d_type, sampling, save_dir_full, name, res_pairs)
+        # process_rna_file(rna_file, seq_segments, file_3d_type, sampling, save_dir_full, name, res_pairs)
 
 
 def process_rna_file(rna_file, seq_segments, file_3d_type, sampling, save_dir_full, name, res_pairs):
@@ -365,11 +426,11 @@ def main():
     # seq_dir = os.path.join(data_dir, "seqs")
     # pdbs_dir = os.path.join(data_dir, "pdbs")
 
-    data_dir = "/home/mjustyna/data/eval_examples/"
+    data_dir = "/home/mjustyna/data/rna3db-v2/rna3db-mmcifs/"
     seq_dir = None
-    pdbs_dir = os.path.join(data_dir, "5_segment")
-    save_dir = os.path.join(".", "data", "eval-pdb")
-    construct_graphs(seq_dir, pdbs_dir, save_dir, "5_segment", file_3d_type='.pdb', extended_dotbracket=extended_dotbracket, sampling=False)
+    pdbs_dir = os.path.join(data_dir, "test_cifs")
+    save_dir = os.path.join(".", "data", "full-3d")
+    construct_graphs(seq_dir, pdbs_dir, save_dir, "test", file_3d_type='.cif', extended_dotbracket=extended_dotbracket, sampling=False)
     
     # data_dir = "/home/mjustyna/data/"
     # seq_dir = os.path.join(data_dir, "sim_desc")
