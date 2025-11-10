@@ -81,8 +81,8 @@ def main(world_size):
     parser.add_argument('--n_layer', type=int, default=2, help='Number of hidden layers.')
     parser.add_argument('--dim', type=int, default=64, help='Size of input hidden units.')
     parser.add_argument('--batch_size', type=int, default=8, help='batch_size')
-    parser.add_argument('--cutoff_l', type=float, default=5, help='cutoff in local layer')
-    parser.add_argument('--cutoff_g', type=float, default=16, help='cutoff in global layer')
+    parser.add_argument('--cutoff_l', type=float, default=.5, help='cutoff in local layer')
+    parser.add_argument('--cutoff_g', type=float, default=1.6, help='cutoff in global layer')
     parser.add_argument('--timesteps', type=int, default=500, help='timesteps')
     parser.add_argument('--wandb', action='store_true', help='Use wandb for logging')
     parser.add_argument('--mode', type=str, default='coarse-grain', help='Mode of the dataset')
@@ -99,7 +99,7 @@ def main(world_size):
 
     if args.wandb and rank == 0:
         wandb.login()
-        run = wandb.init(project='RNA-GNN-Full-RNAs', config=args)
+        run = wandb.init(project='RNA3DB-Full-RNAs', config=args)
         exp_name = run.name
     else:
         exp_name = "test"
@@ -110,8 +110,8 @@ def main(world_size):
 
     # Creat dataset
     path = osp.join('.', 'data', args.dataset)
-    train_dataset = RNAPDBDataset(path, name='train-pkl', mode=args.mode).shuffle()
-    val_dataset = RNAPDBDataset(path, name='val-pkl', mode=args.mode)
+    train_dataset = RNAPDBDataset(path, name='train', mode=args.mode).shuffle()
+    val_dataset = RNAPDBDataset(path, name='val', mode=args.mode)
    
     dist_sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=rank, shuffle=True)
     val_dist_sampler = DistributedSampler(val_dataset, num_replicas=world_size, rank=rank, shuffle=False)
@@ -191,7 +191,7 @@ def main(world_size):
         if not os.path.exists(save_folder) and rank==0:
             os.makedirs(save_folder)
 
-        if epoch % 10 == 0 and epoch > 0 and rank==0:
+        if epoch % 50 == 0 and epoch > 0 and rank==0:
             print(f"Saving model at epoch {epoch} to {save_folder}")
             torch.save(model.module.state_dict(), f"{save_folder}/model_{epoch}.h5")
 

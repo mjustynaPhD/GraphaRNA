@@ -65,10 +65,18 @@ class BesselBasisLayer(torch.nn.Module):
 
         self.freq = torch.nn.Parameter(torch.empty(num_radial))
 
-        # self.reset_parameters()
+        self.reset_parameters()
 
     def reset_parameters(self):
-        torch.arange(1, self.freq.numel() + 1, out=self.freq).mul_(torch.pi)
+        # torch.arange(1, self.freq.numel() + 1, out=self.freq).mul_(torch.pi)
+        # 1. Create the desired values on a temporary, non-trainable tensor.
+        # This tensor has the values {pi, 2pi, 3pi, ...}
+        new_freq_data = torch.arange(1, self.freq.numel() + 1).float().mul_(torch.pi)
+        
+        # 2. Assign the new data directly to the .data attribute of the parameter.
+        # This is the standard, safe way to initialize a Parameter in PyTorch.
+        # It handles the memory transfer without disrupting the gradient tracking graph.
+        self.freq.data.copy_(new_freq_data)
 
     def forward(self, dist):
         dist = dist.unsqueeze(-1) / self.cutoff

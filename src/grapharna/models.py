@@ -131,7 +131,7 @@ class PAMNet(nn.Module):
 
         self.softmax = nn.Softmax(dim=-1)
 
-    def get_edge_info(self, edge_index, edge_attr, pos):
+    def get_edge_info(self, edge_index, edge_attr, pos, epsilon=1e-3):
         edge_index, edge_attr = remove_self_loops(edge_index, edge_attr)
         j, i = edge_index
         dist = (pos[i] - pos[j]).pow(2).sum(dim=-1).sqrt()
