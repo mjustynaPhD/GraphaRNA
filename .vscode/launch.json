@@ -28,7 +28,7 @@
             "name": "Preprocess PDBs",
             "type": "debugpy",
             "request": "launch",
-            "program": "preprocess_rna_pdb.py",
+            "program": "src/grapharna/preprocess_rna_pdb.py",
             "console": "integratedTerminal",
             "args": [
             ]

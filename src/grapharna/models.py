@@ -14,10 +14,10 @@ class Config(object):
     def __init__(self, dataset, dim, n_layer, cutoff_l, cutoff_g, mode, knns:int, transformer_blocks:int):
         self.dataset = dataset
         self.dim = dim
-        if mode == "backbone":
+        if mode == "backbone" or mode == "p-only":
             self.out_dim = 12
         else:
-            self.out_dim = 15
+            self.out_dim = 13
         self.n_layer = n_layer
         self.cutoff_l = cutoff_l
         self.cutoff_g = cutoff_g
@@ -231,6 +231,10 @@ class PAMNet(nn.Module):
         valid_positions = torch.where(valid_positions==0)[0]
         seq_emb = seq_emb[valid_positions]
         return torch.cat((x, seq_emb), dim=1), seq_emb
+    
+    def merge_single_seq_embedding(self, seq_emb, x):
+        assert len(seq_emb) == len(x), f"len(x)={len(x)}, len(seq_emb)={len(seq_emb)}"
+        return torch.cat((x, seq_emb), dim=1), seq_emb
 
     def forward(self, data, seqs, t=None):
         x_raw = data.x.contiguous()
@@ -239,7 +243,8 @@ class PAMNet(nn.Module):
         x_raw = x_raw.unsqueeze(-1) if x_raw.dim() == 1 else x_raw
         x = x_raw[:, 3:]  # one-hot encoded atom types;
         seq_emb = self.sequence_module(seqs, x.device)
-        seq_x, seq_emb = self.merge_seq_embeddings(seq_emb, x)
+        # seq_x, seq_emb = self.merge_seq_embeddings(seq_emb, x)
+        seq_x, seq_emb = self.merge_single_seq_embedding(seq_emb, x)
         time_emb = self.time_mlp(t)
         pos = x_raw[:,:3].contiguous()
         x_pos = self.init_linear(pos) # coordinates embeddings
