@@ -9,6 +9,7 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DistributedSampler
+from torch.cuda.amp import autocast, GradScaler
 from torch.optim.lr_scheduler import StepLR
 from torch_geometric.loader import DataLoader
 from torch_geometric import seed_everything
@@ -66,10 +67,10 @@ def sample(model, loader, device, sampler, epoch, args, num_batches=None, exp_na
             if num_batches is not None and s_counter >= num_batches:
                 break
 
-def setup(rank, world_size):
-    os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '12355'
-    dist.init_process_group("nccl", rank=rank, world_size=world_size)
+# def setup(rank, world_size):
+#     os.environ['MASTER_ADDR'] = 'localhost'
+#     os.environ['MASTER_PORT'] = '12355'
+#     dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
 def main(world_size):
     parser = argparse.ArgumentParser()
@@ -95,7 +96,9 @@ def main(world_size):
     
     # setup(rank, world_size)
     dist.init_process_group("nccl")
-    rank = int(os.environ['LOCAL_RANK'])
+    local_rank = int(os.environ['LOCAL_RANK'])
+    torch.cuda.set_device(local_rank)
+    rank = int(os.environ['RANK'])
 
     if args.wandb and rank == 0:
         wandb.login()
@@ -104,7 +107,7 @@ def main(world_size):
     else:
         exp_name = "test"
 
-    device = rank
+    device = local_rank
     set_seed(args.seed)
     print(f"Rank: {rank} Device:{device}")
 
@@ -113,8 +116,10 @@ def main(world_size):
     train_dataset = RNAPDBDataset(path, name='train', mode=args.mode).shuffle()
     val_dataset = RNAPDBDataset(path, name='val', mode=args.mode)
    
-    dist_sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=rank, shuffle=True)
-    val_dist_sampler = DistributedSampler(val_dataset, num_replicas=world_size, rank=rank, shuffle=False)
+    # dist_sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=rank, shuffle=True)
+    # val_dist_sampler = DistributedSampler(val_dataset, num_replicas=world_size, rank=rank, shuffle=False)
+    dist_sampler = DistributedSampler(train_dataset, shuffle=True)
+    val_dist_sampler = DistributedSampler(val_dataset, shuffle=False)
     # Load dataset
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, sampler=dist_sampler)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, sampler=val_dist_sampler)
@@ -138,9 +143,9 @@ def main(world_size):
     model = PAMNet(config).to(device)
     # load state dict of a pre-trained model
     if args.load:
-        model.load_state_dict(torch.load("save/twilight-shadow-129/model_200.h5"))
+        model.load_state_dict(torch.load("save/fearless-thunder-72/model_last.h5"))
 
-    model = DDP(model, device_ids=[rank], find_unused_parameters=True)
+    model = DDP(model, device_ids=[local_rank], find_unused_parameters=True)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     scheduler = StepLR(optimizer, step_size=args.lr_step, gamma=args.lr_gamma)
     
@@ -148,6 +153,7 @@ def main(world_size):
     torch.autograd.set_detect_anomaly(True)
     
     dist.barrier()
+    # scaler = GradScaler() # gradient scaler for mixed precision training
     for epoch in range(args.epochs):
         model.train()
         step = 0
@@ -191,9 +197,10 @@ def main(world_size):
         if not os.path.exists(save_folder) and rank==0:
             os.makedirs(save_folder)
 
-        if epoch % 50 == 0 and epoch > 0 and rank==0:
+        if epoch % 1 == 0 and epoch > 0 and rank==0:
             print(f"Saving model at epoch {epoch} to {save_folder}")
-            torch.save(model.module.state_dict(), f"{save_folder}/model_{epoch}.h5")
+            # torch.save(model.module.state_dict(), f"{save_folder}/model_{epoch}.h5")
+            torch.save(model.module.state_dict(), f"{save_folder}/model_last.h5")
 
     if rank == 0:
         torch.save(model.module.state_dict(), f"{save_folder}/model_{epoch}.h5")

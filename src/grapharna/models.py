@@ -2,6 +2,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.checkpoint import checkpoint
 from torch_sparse import SparseTensor
 from torch_geometric.nn import knn
 from torch_geometric.utils import remove_self_loops
@@ -315,12 +316,18 @@ class PAMNet(nn.Module):
         att_score_local = []
         
         for layer in range(self.n_layer):
-            x, out_g, att_score_g = self.global_layer[layer](x, edge_attr_rbf_g, edge_index_g)
+            # do checkpointing to save memory
+            if x.size(0) > 1500:
+                x, out_g, att_score_g = checkpoint(self.global_layer[layer], x, edge_attr_rbf_g, edge_index_g, use_reentrant=False)
+                x, out_l, att_score_l = checkpoint(self.local_layer[layer], x, edge_attr_rbf_l, edge_attr_sbf2, edge_attr_sbf1, \
+                                                    idx_kj, idx_ji, idx_jj_pair, idx_ji_pair, edge_index_l, use_reentrant=False)
+            else:   
+                x, out_g, att_score_g = self.global_layer[layer](x, edge_attr_rbf_g, edge_index_g)
+                x, out_l, att_score_l = self.local_layer[layer](x, edge_attr_rbf_l, edge_attr_sbf2, edge_attr_sbf1, \
+                                                    idx_kj, idx_ji, idx_jj_pair, idx_ji_pair, edge_index_l)
             out_global.append(out_g)
             att_score_global.append(att_score_g)
 
-            x, out_l, att_score_l = self.local_layer[layer](x, edge_attr_rbf_l, edge_attr_sbf2, edge_attr_sbf1, \
-                                                    idx_kj, idx_ji, idx_jj_pair, idx_ji_pair, edge_index_l)
             out_local.append(out_l)
             att_score_local.append(att_score_l)
         # Fusion Module
@@ -334,7 +341,12 @@ class PAMNet(nn.Module):
         out = (out * att_weight)
         out = out.sum(dim=0)
         out = self.struct_emb(out)
-        out = self.seq_struct_module(seq_emb, out, batch)
+        with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=False, enable_mem_efficient=True):
+            # if out shape has more than 300 * 5 atoms, use checkpointing to save memory
+            if x.size(0) > 1500:
+                out = checkpoint(self.seq_struct_module, seq_emb, out, batch, use_reentrant=False)
+            else:
+                out = self.seq_struct_module(seq_emb, out, batch)
         out = torch.cat((x, out), dim=1)
         out = self.out_linear(out)
         # out = F.relu(out)
