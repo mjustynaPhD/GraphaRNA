@@ -38,12 +38,12 @@ def p_losses(denoise_model,
     elif loss_type == 'l2':
         loss = F.mse_loss(noise, predicted_noise)
     elif loss_type == "huber":
-        loss = F.smooth_l1_loss(noise[mask], predicted_noise[mask])
-        # loss_copy = F.smooth_l1_loss(noise[mask, 3:], predicted_noise[mask, 3:])
-        # loss_denoise = F.smooth_l1_loss(noise[mask, :3], predicted_noise[mask, :3])
-        # loss = 0.3 * loss_copy + 0.7 * loss_denoise
-        # loss = loss_copy + loss_denoise
+        # loss = F.smooth_l1_loss(noise[mask], predicted_noise[mask])
+        loss_copy = F.smooth_l1_loss(noise[mask, 3:], predicted_noise[mask, 3:])
+        loss_denoise = F.smooth_l1_loss(noise[mask, :3], predicted_noise[mask, :3])
+        loss = 0.1 * loss_copy + 0.9 * loss_denoise
+        loss = loss_copy + loss_denoise
     else:
         raise NotImplementedError()
 
-    return loss, loss
+    return loss, loss_denoise

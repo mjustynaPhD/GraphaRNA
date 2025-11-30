@@ -48,9 +48,10 @@ def main():
     print('Seed:', args.seed)
     set_seed(args.seed)
     # Load the model
-    exp_name = "effortless-water-35"
+    exp_name = "magic-wind-105"
     epoch = 400
-    model_path = f"save/{exp_name}/model_{epoch}.h5"
+    # model_path = f"save/{exp_name}/model_{epoch}.h5"
+    model_path = f"save/{exp_name}/model_last.h5"
     
     if args.input is None and args.dataset is None:
         # print help message
