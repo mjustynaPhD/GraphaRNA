@@ -75,7 +75,7 @@ def sample(model, loader, device, sampler, epoch, args, num_batches=None, exp_na
 def main(world_size):
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu', type=int, default=0, help='GPU number.')
-    parser.add_argument('--seed', type=int, default=40, help='Random seed.')
+    parser.add_argument('--seed', type=int, default=0, help='Random seed.')
     parser.add_argument('--dataset', type=str, default='RNA-Puzzles', help='Dataset to be used')
     parser.add_argument('--epochs', type=int, default=150, help='Number of epochs to train.')
     parser.add_argument('--lr', type=float, default=5e-4, help='Initial learning rate.')
