@@ -48,7 +48,7 @@ def main():
     print('Seed:', args.seed)
     set_seed(args.seed)
     # Load the model
-    exp_name = "magic-wind-105"
+    exp_name = "misunderstood-dew-107"
     epoch = 400
     # model_path = f"save/{exp_name}/model_{epoch}.h5"
     model_path = f"save/{exp_name}/model_last.h5"
