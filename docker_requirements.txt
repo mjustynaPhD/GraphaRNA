@@ -1,0 +1,25 @@
+# docker_requirements.txt
+  
+numpy==1.26.4
+scikit-learn>=1.4.0
+pandas
+biopython>=1.83
+einops
+
+fastapi
+uvicorn
+python-multipart
+
+wandb
+
+rnapolis==0.3.11
+
+# could remove +pt23cu121 for usage on diffrent CUDA machines
+torch==2.3.0
+torch-geometric==2.5.3
+torch-scatter==2.1.2+pt23cu121
+torch-sparse==0.6.18+pt23cu121
+torch-cluster==1.6.3+pt23cu121
+
+# Required path for some torch installs
+--find-links https://data.pyg.org/whl/torch-2.3.0+cu121.html
